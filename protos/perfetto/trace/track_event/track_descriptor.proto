@@ -16,8 +16,8 @@
 
 syntax = "proto2";
 
-import "protos/perfetto/trace/track_event/chrome_process_descriptor.proto";
-import "protos/perfetto/trace/track_event/chrome_thread_descriptor.proto";
+// import "protos/perfetto/trace/track_event/chrome_process_descriptor.proto";
+// import "protos/perfetto/trace/track_event/chrome_thread_descriptor.proto";
 import "protos/perfetto/trace/track_event/process_descriptor.proto";
 import "protos/perfetto/trace/track_event/thread_descriptor.proto";
 import "protos/perfetto/trace/track_event/counter_descriptor.proto";
@@ -68,7 +68,7 @@ message TrackDescriptor {
   // from other sources (e.g. ftrace) for the same process into a single
   // timeline view.
   optional ProcessDescriptor process = 3;
-  optional ChromeProcessDescriptor chrome_process = 6;
+  // optional ChromeProcessDescriptor chrome_process = 6;
 
   // Associate the track with a thread, indicating that the track's events
   // describe synchronous code execution on the thread. There should only be one
@@ -78,7 +78,7 @@ message TrackDescriptor {
   // from other sources (e.g. ftrace) for the same thread into a single timeline
   // view.
   optional ThreadDescriptor thread = 4;
-  optional ChromeThreadDescriptor chrome_thread = 7;
+  // optional ChromeThreadDescriptor chrome_thread = 7;
 
   // Descriptor for a counter track. If set, the track will only support
   // TYPE_COUNTER TrackEvents (and values provided via TrackEvent's

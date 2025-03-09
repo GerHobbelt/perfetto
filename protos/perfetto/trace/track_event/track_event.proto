@@ -19,21 +19,21 @@ syntax = "proto2";
 import "protos/perfetto/trace/track_event/debug_annotation.proto";
 import "protos/perfetto/trace/track_event/log_message.proto";
 import "protos/perfetto/trace/track_event/task_execution.proto";
-import "protos/perfetto/trace/track_event/chrome_active_processes.proto";
-import "protos/perfetto/trace/track_event/chrome_application_state_info.proto";
-import "protos/perfetto/trace/track_event/chrome_compositor_scheduler_state.proto";
-import "protos/perfetto/trace/track_event/chrome_content_settings_event_info.proto";
-import "protos/perfetto/trace/track_event/chrome_frame_reporter.proto";
-import "protos/perfetto/trace/track_event/chrome_histogram_sample.proto";
-import "protos/perfetto/trace/track_event/chrome_keyed_service.proto";
-import "protos/perfetto/trace/track_event/chrome_latency_info.proto";
-import "protos/perfetto/trace/track_event/chrome_legacy_ipc.proto";
-import "protos/perfetto/trace/track_event/chrome_message_pump.proto";
-import "protos/perfetto/trace/track_event/chrome_mojo_event_info.proto";
-import "protos/perfetto/trace/track_event/chrome_renderer_scheduler_state.proto";
-import "protos/perfetto/trace/track_event/chrome_user_event.proto";
-import "protos/perfetto/trace/track_event/chrome_window_handle_event_info.proto";
-import "protos/perfetto/trace/track_event/screenshot.proto";
+// import "protos/perfetto/trace/track_event/chrome_active_processes.proto";
+// import "protos/perfetto/trace/track_event/chrome_application_state_info.proto";
+// import "protos/perfetto/trace/track_event/chrome_compositor_scheduler_state.proto";
+// import "protos/perfetto/trace/track_event/chrome_content_settings_event_info.proto";
+// import "protos/perfetto/trace/track_event/chrome_frame_reporter.proto";
+// import "protos/perfetto/trace/track_event/chrome_histogram_sample.proto";
+// import "protos/perfetto/trace/track_event/chrome_keyed_service.proto";
+// import "protos/perfetto/trace/track_event/chrome_latency_info.proto";
+// import "protos/perfetto/trace/track_event/chrome_legacy_ipc.proto";
+// import "protos/perfetto/trace/track_event/chrome_message_pump.proto";
+// import "protos/perfetto/trace/track_event/chrome_mojo_event_info.proto";
+// import "protos/perfetto/trace/track_event/chrome_renderer_scheduler_state.proto";
+// import "protos/perfetto/trace/track_event/chrome_user_event.proto";
+// import "protos/perfetto/trace/track_event/chrome_window_handle_event_info.proto";
+// import "protos/perfetto/trace/track_event/screenshot.proto";
 import "protos/perfetto/trace/track_event/source_location.proto";
 
 package perfetto.protos;
@@ -243,20 +243,20 @@ message TrackEvent {
   // Typed event arguments:
   optional TaskExecution task_execution = 5;
   optional LogMessage log_message = 21;
-  optional ChromeCompositorSchedulerState cc_scheduler_state = 24;
-  optional ChromeUserEvent chrome_user_event = 25;
-  optional ChromeKeyedService chrome_keyed_service = 26;
-  optional ChromeLegacyIpc chrome_legacy_ipc = 27;
-  optional ChromeHistogramSample chrome_histogram_sample = 28;
-  optional ChromeLatencyInfo chrome_latency_info = 29;
-  optional ChromeFrameReporter chrome_frame_reporter = 32;
-  optional ChromeApplicationStateInfo chrome_application_state_info = 39;
-  optional ChromeRendererSchedulerState chrome_renderer_scheduler_state = 40;
-  optional ChromeWindowHandleEventInfo chrome_window_handle_event_info = 41;
-  optional ChromeContentSettingsEventInfo chrome_content_settings_event_info =
-      43;
-  optional ChromeActiveProcesses chrome_active_processes = 49;
-  optional Screenshot screenshot = 50;
+  // optional ChromeCompositorSchedulerState cc_scheduler_state = 24;
+  // optional ChromeUserEvent chrome_user_event = 25;
+  // optional ChromeKeyedService chrome_keyed_service = 26;
+  // optional ChromeLegacyIpc chrome_legacy_ipc = 27;
+  // optional ChromeHistogramSample chrome_histogram_sample = 28;
+  // optional ChromeLatencyInfo chrome_latency_info = 29;
+  // optional ChromeFrameReporter chrome_frame_reporter = 32;
+  // optional ChromeApplicationStateInfo chrome_application_state_info = 39;
+  // optional ChromeRendererSchedulerState chrome_renderer_scheduler_state = 40;
+  // optional ChromeWindowHandleEventInfo chrome_window_handle_event_info = 41;
+  // optional ChromeContentSettingsEventInfo chrome_content_settings_event_info =
+  //     43;
+  // optional ChromeActiveProcesses chrome_active_processes = 49;
+  // optional Screenshot screenshot = 50;
 
   // This field is used only if the source location represents the function that
   // executes during this event.
@@ -267,8 +267,8 @@ message TrackEvent {
     uint64 source_location_iid = 34;
   }
 
-  optional ChromeMessagePump chrome_message_pump = 35;
-  optional ChromeMojoEventInfo chrome_mojo_event_info = 38;
+  // optional ChromeMessagePump chrome_message_pump = 35;
+  // optional ChromeMojoEventInfo chrome_mojo_event_info = 38;
 
   // New argument types go here :)
 
