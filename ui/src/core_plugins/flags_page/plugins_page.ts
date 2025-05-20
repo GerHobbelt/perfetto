@@ -16,7 +16,7 @@ import m from 'mithril';
 import {classNames} from '../../base/classnames';
 import {assertUnreachable} from '../../base/logging';
 import {exists} from '../../base/utils';
-import {AppImpl} from '../../core/app_impl';
+import {AppImplAttrs} from '../../core/app_impl';
 import {PluginWrapper} from '../../core/plugin_manager';
 import {Button, ButtonBar, ButtonVariant} from '../../widgets/button';
 import {Card, CardStack} from '../../widgets/card';
@@ -74,9 +74,9 @@ function sortText(sortOrder: SortOrder) {
   }
 }
 
-export class PluginsPage implements m.ClassComponent {
-  view() {
-    const pluginManager = AppImpl.instance.plugins;
+export class PluginsPage implements m.ClassComponent<AppImplAttrs> {
+  view({attrs}: m.Vnode<AppImplAttrs>) {
+    const pluginManager = attrs.app.plugins;
     const registeredPlugins = pluginManager.getAllPlugins();
     const needsRestart = registeredPlugins.some((p) => {
       return p.enableFlag.get() !== p.enabled;

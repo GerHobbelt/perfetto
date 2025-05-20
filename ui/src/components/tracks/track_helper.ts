@@ -15,7 +15,7 @@
 import {BigintMath} from '../../base/bigint_math';
 import {duration, Time, time, TimeSpan} from '../../base/time';
 export {Store} from '../../base/store';
-import {raf} from '../../core/raf_scheduler';
+import {Trace} from '../../public/trace';
 
 type FetchTimeline<Data> = (
   start: time,
@@ -42,7 +42,7 @@ export class TimelineFetcher<Data> implements Disposable {
     this.latestResolution = 0n;
   }
 
-  async requestData(timespan: TimeSpan, resolution: duration): Promise<void> {
+  async requestData(trace: Trace, timespan: TimeSpan, resolution: duration): Promise<void> {
     if (this.shouldLoadNewData(timespan, resolution)) {
       // Over request data, one page worth to the left and right.
       const padded = timespan.pad(timespan.duration);
@@ -55,7 +55,7 @@ export class TimelineFetcher<Data> implements Disposable {
 
       this.latestTimespan = new TimeSpan(startQ, endQ);
       this.latestResolution = resolution;
-      await this.loadData();
+      await this.loadData(trace);
     }
   }
 
@@ -91,10 +91,10 @@ export class TimelineFetcher<Data> implements Disposable {
     return false;
   }
 
-  private async loadData(): Promise<void> {
+  private async loadData(trace: Trace): Promise<void> {
     const {start, end} = this.latestTimespan;
     const resolution = this.latestResolution;
     this.data_ = await this.doFetch(start, end, resolution);
-    raf.scheduleCanvasRedraw();
+    trace.raf.scheduleCanvasRedraw();
   }
 }

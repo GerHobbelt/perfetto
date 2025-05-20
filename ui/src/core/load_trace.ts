@@ -42,11 +42,9 @@ import {
   deserializeAppStatePhase2,
 } from './state_serialization';
 import {AppImpl} from './app_impl';
-import {raf} from './raf_scheduler';
 import {TraceImpl} from './trace_impl';
 import {SerializedAppState} from './state_serialization_schema';
 import {TraceSource} from './trace_source';
-import {Router} from '../core/router';
 import {TraceInfoImpl} from './trace_info_impl';
 
 const ENABLE_CHROME_RELIABLE_RANGE_ZOOM_FLAG = featureFlags.register({
@@ -132,12 +130,12 @@ async function createEngine(
   // HTTP RPC mode (i.e. trace_processor_shell -D).
   let useRpc = false;
   if (app.httpRpc.newEngineMode === 'USE_HTTP_RPC_IF_AVAILABLE') {
-    useRpc = (await HttpRpcEngine.checkConnection()).connected;
+    useRpc = (await HttpRpcEngine.checkConnection(app.httpRpc.rpcPort)).connected;
   }
   let engine;
   if (useRpc) {
     console.log('Opening trace using native accelerator over HTTP+RPC');
-    engine = new HttpRpcEngine(engineId);
+    engine = new HttpRpcEngine(engineId, app.httpRpc.rpcPort);
   } else {
     console.log('Opening trace using built-in WASM engine');
     engine = new WasmEngineProxy(engineId);
@@ -148,7 +146,7 @@ async function createEngine(
       ftraceDropUntilAllCpusValid: FTRACE_DROP_UNTIL_FLAG.get(),
     });
   }
-  engine.onResponseReceived = () => raf.scheduleFullRedraw();
+  engine.onResponseReceived = () => app.raf.scheduleFullRedraw();
 
   if (isMetatracingEnabled()) {
     engine.enableMetatrace(assertExists(getEnabledMetatracingCategories()));
@@ -226,7 +224,7 @@ async function loadTraceIntoEngine(
   trace.timeline.updateVisibleTime(visibleTimeSpan);
 
   const cacheUuid = traceDetails.cached ? traceDetails.uuid : '';
-  Router.navigate(`#!/viewer?local_cache_key=${cacheUuid}`);
+  app.router.navigate(`#!/viewer?local_cache_key=${cacheUuid}`);
 
   // Make sure the helper views are available before we start adding tracks.
   await includeSummaryTables(trace);
@@ -300,7 +298,7 @@ async function includeSummaryTables(trace: TraceImpl) {
 
 function updateStatus(traceOrApp: TraceImpl | AppImpl, msg: string): void {
   const showUntilDismissed = 0;
-  traceOrApp.omnibox.showStatusMessage(msg, showUntilDismissed);
+  traceOrApp.omnibox.showStatusMessage(traceOrApp, msg, showUntilDismissed);
 }
 
 async function computeFtraceBounds(engine: Engine): Promise<TimeSpan | null> {

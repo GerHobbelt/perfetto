@@ -15,7 +15,7 @@
 import {FuzzyFinder, FuzzySegment} from '../base/fuzzy';
 import {Registry} from '../base/registry';
 import {Command, CommandManager} from '../public/command';
-import {raf} from './raf_scheduler';
+import {Raf} from '../public/raf';
 
 export interface CommandWithMatchInfo extends Command {
   segments: FuzzySegment[];
@@ -23,6 +23,8 @@ export interface CommandWithMatchInfo extends Command {
 
 export class CommandManagerImpl implements CommandManager {
   private readonly registry = new Registry<Command>((cmd) => cmd.id);
+
+  constructor (private readonly raf: Raf) {}
 
   getCommand(commandId: string): Command {
     return this.registry.get(commandId);
@@ -43,7 +45,7 @@ export class CommandManagerImpl implements CommandManager {
   runCommand(id: string, ...args: unknown[]): unknown {
     const cmd = this.registry.get(id);
     const res = cmd.callback(...args);
-    Promise.resolve(res).finally(() => raf.scheduleFullRedraw());
+    Promise.resolve(res).finally(() => this.raf.scheduleFullRedraw());
     return res;
   }
 

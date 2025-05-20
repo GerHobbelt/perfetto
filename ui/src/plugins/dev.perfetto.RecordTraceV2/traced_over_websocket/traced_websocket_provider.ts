@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import {EvtSource} from '../../../base/events';
+import {App} from '../../../public/app';
 import {PreflightCheck} from '../interfaces/connection_check';
 import {RecordingTarget} from '../interfaces/recording_target';
 import {RecordingTargetProvider} from '../interfaces/recording_target_provider';
@@ -31,7 +32,7 @@ export class TracedWebsocketTargetProvider implements RecordingTargetProvider {
 
   readonly targets = new Map<string, TracedWebsocketTarget>();
 
-  constructor() {
+  constructor(public readonly app: App) {
     // Add the default target.
     const defaultWsUrl = 'ws://127.0.0.1:8037/traced';
     this.targets.set(defaultWsUrl, new TracedWebsocketTarget(defaultWsUrl));

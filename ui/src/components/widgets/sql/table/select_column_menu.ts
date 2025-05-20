@@ -14,14 +14,15 @@
 
 import m from 'mithril';
 import {TableColumn, TableManager, tableColumnId} from './table_column';
+import {Trace} from '../../../../public/trace';
 import {MenuDivider, MenuItem} from '../../../../widgets/menu';
-import {raf} from '../../../../core/raf_scheduler';
 import {uuidv4} from '../../../../base/uuid';
 import {hasModKey, modKey} from '../../../../base/hotkeys';
 import {TextInput} from '../../../../widgets/text_input';
 import {Spinner} from '../../../../widgets/spinner';
 
 export type SelectColumnMenuAttrs = {
+  trace: Trace,
   columns:
     | {key: string; column: TableColumn}[]
     | (() => Promise<{key: string; column: TableColumn}[]>);
@@ -40,6 +41,7 @@ export type SelectColumnMenuAttrs = {
 };
 
 type SelectColumnMenuImplAttrs = {
+  trace: Trace;
   columns: {key: string; column: TableColumn}[];
   manager: TableManager;
   existingColumnIds?: Set<string>;
@@ -109,6 +111,7 @@ class SelectColumnMenuImpl
           },
           derivedColumns !== undefined &&
             m(SelectColumnMenu, {
+              trace: attrs.trace,
               primaryColumn: {key, column},
               existingColumnIds: attrs.existingColumnIds,
               onColumnSelected: attrs.onColumnSelected,
@@ -139,9 +142,10 @@ export class SelectColumnMenu
     if (Array.isArray(vnode.attrs.columns)) {
       this.columns = vnode.attrs.columns;
     } else {
+      const trace = vnode.attrs.trace;
       vnode.attrs.columns().then((columns) => {
         this.columns = columns;
-        raf.scheduleFullRedraw();
+        trace.raf.scheduleFullRedraw();
       });
     }
   }
@@ -222,6 +226,7 @@ export class SelectColumnMenu
       this.columns === undefined && m(Spinner),
       this.columns !== undefined &&
         m(SelectColumnMenuImpl, {
+          trace: attrs.trace,
           columns: filtered,
           manager: attrs.manager,
           existingColumnIds: attrs.existingColumnIds,
