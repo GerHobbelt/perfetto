@@ -20,7 +20,6 @@ import {assertUnreachable} from '../../base/logging';
 import {Icons} from '../../base/semantic_icons';
 import {TimeScale} from '../../base/time_scale';
 import {randomColor} from '../../components/colorizer';
-import {raf} from '../../core/raf_scheduler';
 import {TraceImpl} from '../../core/trace_impl';
 import {Note, SpanNote} from '../../public/note';
 import {Button, ButtonBar} from '../../widgets/button';
@@ -97,11 +96,11 @@ export class NotesPanel {
         onmousemove: (e: MouseEvent) => {
           this.mouseDragging = true;
           this.hoveredX = currentTargetOffset(e).x - TRACK_SHELL_WIDTH;
-          raf.scheduleCanvasRedraw();
+          this.trace.raf.scheduleCanvasRedraw();
         },
         onmouseenter: (e: MouseEvent) => {
           this.hoveredX = currentTargetOffset(e).x - TRACK_SHELL_WIDTH;
-          raf.scheduleCanvasRedraw();
+          this.trace.raf.scheduleCanvasRedraw();
         },
         onmouseout: () => {
           this.hoveredX = null;

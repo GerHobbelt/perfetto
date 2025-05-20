@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import {App} from '../public/app';
 import {OmniboxManager, PromptChoices} from '../public/omnibox';
-import {raf} from './raf_scheduler';
 
 export enum OmniboxMode {
   Search,
@@ -93,12 +93,12 @@ export class OmniboxManagerImpl implements OmniboxManager {
     this.rejectPendingPrompt();
   }
 
-  showStatusMessage(msg: string, durationMs = 2000) {
+  showStatusMessage(app: App, msg: string, durationMs = 2000) {
     const statusMessageContainer: {msg?: string} = {msg};
     if (durationMs > 0) {
       setTimeout(() => {
         statusMessageContainer.msg = undefined;
-        raf.scheduleFullRedraw();
+        app.raf.scheduleFullRedraw();
       }, durationMs);
     }
     this._statusMessageContainer = statusMessageContainer;

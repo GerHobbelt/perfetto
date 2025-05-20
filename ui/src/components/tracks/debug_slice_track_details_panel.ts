@@ -118,7 +118,7 @@ export class DebugSliceTrackDetailsPanel implements TrackEventDetailsPanel {
     return m(
       TreeNode,
       {
-        left: threadStateRef(this.threadState),
+        left: threadStateRef(this.trace, this.threadState),
         right: '',
       },
       renderTreeContents({
@@ -156,7 +156,7 @@ export class DebugSliceTrackDetailsPanel implements TrackEventDetailsPanel {
     return m(
       TreeNode,
       {
-        left: sliceRef(this.slice, 'Slice'),
+        left: sliceRef(this.slice, this.trace, 'Slice'),
         right: '',
       },
       m(TreeNode, {
@@ -230,8 +230,8 @@ export class DebugSliceTrackDetailsPanel implements TrackEventDetailsPanel {
     }
     const details = dictToTreeNodes({
       'Name': this.data['name'] as string,
-      'Start time': m(Timestamp, {ts: timeFromSql(this.data['ts'])}),
-      'Duration': m(DurationWidget, {dur: durationFromSql(this.data['dur'])}),
+      'Start time': m(Timestamp, {trace: this.trace, ts: timeFromSql(this.data['ts'])}),
+      'Duration': m(DurationWidget, {trace: this.trace, dur: durationFromSql(this.data['dur'])}),
       'SQL ID': m(SqlRef, {table: this.tableName, id: this.eventId}),
     });
     details.push(this.renderThreadStateInfo());

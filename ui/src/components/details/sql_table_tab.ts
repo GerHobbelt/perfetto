@@ -57,7 +57,7 @@ export function addLegacyTableTab(
 }
 
 function addSqlTableTabWithState(state: SqlTableState) {
-  addEphemeralTab('sqlTable', new LegacySqlTableTab(state));
+  addEphemeralTab(state.trace, 'sqlTable', new LegacySqlTableTab(state));
 }
 
 class LegacySqlTableTab implements Tab {
@@ -163,7 +163,7 @@ class LegacySqlTableTab implements Tab {
             ...chartAttrs,
           },
         ],
-        addChart: (chart) => addChartTab(chart),
+        addChart: (chart) => addChartTab(this.state.trace, chart),
       }),
       m(MenuItem, {
         label: 'Pivot',
@@ -251,11 +251,13 @@ class LegacySqlTableTab implements Tab {
         ),
       this.selected.kind === 'table' &&
         m(SqlTable, {
+          trace: this.state.trace,
           state: this.selected.state,
           addColumnMenuItems: this.tableMenuItems.bind(this),
         }),
       this.selected.kind === 'pivot' &&
         m(PivotTable, {
+          trace: this.state.trace,
           state: this.selected.state,
           extraRowButton: (node) =>
             // Do not show any buttons for root as it doesn't have any filters anyway.

@@ -38,9 +38,13 @@ class Flags {
     this.load();
   }
 
-  register(settings: FlagSettings): Flag {
+  register(settings: FlagSettings, isPluginFlag = false): Flag {
     const id = settings.id;
-    if (this.flags.has(id)) {
+    const existing = this.flags.get(id);
+    if (existing !== undefined) {
+      if (isPluginFlag) {
+        return existing;
+      }
       throw new Error(`Flag with id "${id}" is already registered.`);
     }
 

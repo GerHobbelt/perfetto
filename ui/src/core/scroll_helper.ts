@@ -14,10 +14,10 @@
 
 import {HighPrecisionTimeSpan} from '../base/high_precision_time_span';
 import {time} from '../base/time';
+import {Raf} from '../public/raf';
 import {ScrollToArgs} from '../public/scroll_helper';
 import {TraceInfo} from '../public/trace_info';
 import {Workspace} from '../public/workspace';
-import {raf} from './raf_scheduler';
 import {TimelineImpl} from './timeline';
 import {TrackManagerImpl} from './track_manager';
 
@@ -28,6 +28,7 @@ export class ScrollHelper {
   constructor(
     private traceInfo: TraceInfo,
     private timeline: TimelineImpl,
+    private raf: Raf,
     private workspace: Workspace,
     private trackManager: TrackManagerImpl,
   ) {}
@@ -35,7 +36,7 @@ export class ScrollHelper {
   // See comments in ScrollToArgs for the intended semantics.
   scrollTo(args: ScrollToArgs) {
     const {time, track} = args;
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
 
     if (time !== undefined) {
       if (time.end === undefined || time.start === time.end) {

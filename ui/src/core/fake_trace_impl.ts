@@ -17,6 +17,8 @@ import {Time} from '../base/time';
 import {EngineBase} from '../trace_processor/engine';
 import {AppImpl} from './app_impl';
 import {InMemoryStorage} from './in_memory_storage';
+import {IntegrationContext} from './integration_context';
+import {Router} from './router';
 import {SettingsManagerImpl} from './settings_manager';
 import {TraceImpl} from './trace_impl';
 import {TraceInfoImpl} from './trace_info_impl';
@@ -29,33 +31,31 @@ export interface FakeTraceImplArgs {
   allowQueries?: boolean;
 }
 
-let appImplInitialized = false;
+const integrationContext = IntegrationContext.create();
+const settingsManager = new SettingsManagerImpl(new InMemoryStorage());
+const appImpl = AppImpl.createCoreInstance({
+  initialRouteArgs: {},
+  settingsManager,
+  timestampFormatSetting: settingsManager.register({
+    id: 'timestampFormat',
+    name: 'Timestamp Format',
+    description: '',
+    defaultValue: TimestampFormat.Timecode,
+    schema: z.nativeEnum(TimestampFormat),
+  }),
+  durationPrecisionSetting: settingsManager.register({
+    id: 'durationPrecision',
+    name: 'Duration Precision',
+    description: '',
+    defaultValue: DurationPrecision.Full,
+    schema: z.nativeEnum(DurationPrecision),
+  }),
+  router: new Router(integrationContext),
+  integrationContext,
+});
 
 export function initializeAppImplForTesting(): AppImpl {
-  if (!appImplInitialized) {
-    appImplInitialized = true;
-
-    const settingsManager = new SettingsManagerImpl(new InMemoryStorage());
-    AppImpl.initialize({
-      initialRouteArgs: {},
-      settingsManager,
-      timestampFormatSetting: settingsManager.register({
-        id: 'timestampFormat',
-        name: 'Timestamp Format',
-        description: '',
-        defaultValue: TimestampFormat.Timecode,
-        schema: z.nativeEnum(TimestampFormat),
-      }),
-      durationPrecisionSetting: settingsManager.register({
-        id: 'durationPrecision',
-        name: 'Duration Precision',
-        description: '',
-        defaultValue: DurationPrecision.Full,
-        schema: z.nativeEnum(DurationPrecision),
-      }),
-    });
-  }
-  return AppImpl.instance;
+  return appImpl;
 }
 
 // For testing purposes only.
@@ -79,13 +79,13 @@ export function createFakeTraceImpl(args: FakeTraceImplArgs = {}) {
     cached: false,
     downloadable: false,
   };
-  AppImpl.instance.closeCurrentTrace();
+  appImpl.closeCurrentTrace();
   const trace = TraceImpl.createInstanceForCore(
-    AppImpl.instance,
+    appImpl,
     new FakeEngine(args.allowQueries ?? false),
     fakeTraceInfo,
   );
-  AppImpl.instance.setActiveTrace(trace);
+  appImpl.setActiveTrace(trace);
   return trace;
 }
 

@@ -90,16 +90,16 @@ function getFirstUtidOfSelectionOrVisibleWindow(trace: Trace): number {
   return 0;
 }
 
-function showModalErrorAreaSelectionRequired() {
-  showModal({
+function showModalErrorAreaSelectionRequired(trace: Trace) {
+  showModal(trace, {
     title: 'Error: range selection required',
     content:
       'This command requires an area selection over a thread state track.',
   });
 }
 
-function showModalErrorThreadStateRequired() {
-  showModal({
+function showModalErrorThreadStateRequired(trace: Trace) {
+  showModal(trace, {
     title: 'Error: thread state selection required',
     content: 'This command requires a thread state slice to be selected.',
   });
@@ -165,7 +165,7 @@ export default class implements PerfettoPlugin {
       callback: async (utid?: Utid) => {
         const thdInfo = await getThreadInfoForUtidOrSelection(ctx, utid);
         if (thdInfo === undefined) {
-          return showModalErrorThreadStateRequired();
+          return showModalErrorThreadStateRequired(ctx);
         }
         ctx.engine
           .query(`INCLUDE PERFETTO MODULE sched.thread_executing_span;`)
@@ -207,7 +207,7 @@ export default class implements PerfettoPlugin {
       callback: async (utid?: Utid) => {
         const thdInfo = await getThreadInfoForUtidOrSelection(ctx, utid);
         if (thdInfo === undefined) {
-          return showModalErrorThreadStateRequired();
+          return showModalErrorThreadStateRequired(ctx);
         }
         ctx.engine
           .query(
@@ -243,7 +243,7 @@ export default class implements PerfettoPlugin {
         const trackUtid = getFirstUtidOfSelectionOrVisibleWindow(ctx);
         const window = await getTimeSpanOfSelectionOrVisibleWindow(ctx);
         if (trackUtid === 0) {
-          return showModalErrorAreaSelectionRequired();
+          return showModalErrorAreaSelectionRequired(ctx);
         }
         await ctx.engine.query(
           `INCLUDE PERFETTO MODULE sched.thread_executing_span;`,
@@ -286,7 +286,7 @@ export default class implements PerfettoPlugin {
         const trackUtid = getFirstUtidOfSelectionOrVisibleWindow(ctx);
         const window = await getTimeSpanOfSelectionOrVisibleWindow(ctx);
         if (trackUtid === 0) {
-          return showModalErrorAreaSelectionRequired();
+          return showModalErrorAreaSelectionRequired(ctx);
         }
         await ctx.engine.query(
           `INCLUDE PERFETTO MODULE sched.thread_executing_span_with_slice;`,
@@ -321,7 +321,7 @@ export default class implements PerfettoPlugin {
         const trackUtid = getFirstUtidOfSelectionOrVisibleWindow(ctx);
         const window = await getTimeSpanOfSelectionOrVisibleWindow(ctx);
         if (trackUtid === 0) {
-          return showModalErrorAreaSelectionRequired();
+          return showModalErrorAreaSelectionRequired(ctx);
         }
         addQueryResultsTab(ctx, {
           query: `

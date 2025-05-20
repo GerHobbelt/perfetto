@@ -111,7 +111,7 @@ export function createProcessPerfSamplesProfileTrack(
       };
       const flamegraph = new QueryFlamegraph(trace, metrics, serialization);
       return {
-        render: () => renderDetailsPanel(flamegraph, Time.fromRaw(row.ts)),
+        render: () => renderDetailsPanel(flamegraph, trace, Time.fromRaw(row.ts)),
         serialization,
       };
     },
@@ -198,14 +198,14 @@ export function createThreadPerfSamplesProfileTrack(
       };
       const flamegraph = new QueryFlamegraph(trace, metrics, serialization);
       return {
-        render: () => renderDetailsPanel(flamegraph, Time.fromRaw(row.ts)),
+        render: () => renderDetailsPanel(flamegraph, trace, Time.fromRaw(row.ts)),
         serialization,
       };
     },
   });
 }
 
-function renderDetailsPanel(flamegraph: QueryFlamegraph, ts: time) {
+function renderDetailsPanel(flamegraph: QueryFlamegraph, trace: Trace, ts: time) {
   return m(
     '.flamegraph-profile',
     m(
@@ -219,6 +219,7 @@ function renderDetailsPanel(flamegraph: QueryFlamegraph, ts: time) {
             'div.time',
             `First timestamp: `,
             m(Timestamp, {
+              trace,
               ts,
             }),
           ),
@@ -226,6 +227,7 @@ function renderDetailsPanel(flamegraph: QueryFlamegraph, ts: time) {
             'div.time',
             `Last timestamp: `,
             m(Timestamp, {
+              trace,
               ts,
             }),
           ),

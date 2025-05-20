@@ -50,7 +50,7 @@ export class DataVisualiser implements m.ClassComponent<DataVisualiserAttrs> {
     );
   }
 
-  private renderSqlTable(state: ExplorePageState) {
+  private renderSqlTable(trace: Trace, state: ExplorePageState) {
     const sqlTableViewState = state.activeViewSource?.visViews?.sqlTableState;
 
     if (sqlTableViewState === undefined) return;
@@ -83,6 +83,7 @@ export class DataVisualiser implements m.ClassComponent<DataVisualiserAttrs> {
       },
       m('div', renderFilters(sqlTableViewState.filters)),
       m(SqlTable, {
+        trace,
         state: sqlTableViewState,
         addColumnMenuItems: (_, columnAlias) => {
           const chartAttrs = {
@@ -157,7 +158,7 @@ export class DataVisualiser implements m.ClassComponent<DataVisualiserAttrs> {
   }
 
   view({attrs}: m.Vnode<DataVisualiserAttrs>) {
-    const {state} = attrs;
+    const {state, trace} = attrs;
 
     return m(
       SplitPanel,
@@ -174,7 +175,7 @@ export class DataVisualiser implements m.ClassComponent<DataVisualiserAttrs> {
             ),
         ),
       },
-      m('.pf-chart-card', this.renderSqlTable(state)),
+      m('.pf-chart-card', this.renderSqlTable(trace, state)),
     );
   }
 }
