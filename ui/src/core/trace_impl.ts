@@ -107,17 +107,19 @@ export class TraceContext implements Disposable {
       },
     });
 
-    this.timeline = new TimelineImpl(traceInfo, settingsManagerProxy);
+    this.timeline = new TimelineImpl(traceInfo, this.appCtx.raf, settingsManagerProxy);
 
     this.scrollHelper = new ScrollHelper(
       this.traceInfo,
       this.timeline,
+      this.appCtx.raf,
       this.workspaceMgr.currentWorkspace,
       this.trackMgr,
     );
 
     this.selectionMgr = new SelectionManagerImpl(
       this.engine,
+      this.appCtx.raf,
       this.trackMgr,
       this.noteMgr,
       this.scrollHelper,
@@ -140,6 +142,7 @@ export class TraceContext implements Disposable {
     );
 
     this.searchMgr = new SearchManagerImpl({
+      raf: this.appCtx.raf,
       timeline: this.timeline,
       trackManager: this.trackMgr,
       engine: this.engine,
@@ -312,6 +315,7 @@ export class TraceImpl implements Trace {
       } else if (src.type === 'URL') {
         return await fetchWithProgress(src.url, (progressPercent: number) =>
           this.omnibox.showStatusMessage(
+            this.appImpl,
             `Downloading trace ${progressPercent}%`,
           ),
         );

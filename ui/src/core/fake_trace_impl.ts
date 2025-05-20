@@ -15,6 +15,8 @@
 import {Time} from '../base/time';
 import {EngineBase} from '../trace_processor/engine';
 import {AppImpl} from './app_impl';
+import {IntegrationContext} from './integration_context';
+import {Router} from './router';
 import {TraceImpl} from './trace_impl';
 import {TraceInfoImpl} from './trace_info_impl';
 
@@ -25,14 +27,15 @@ export interface FakeTraceImplArgs {
   allowQueries?: boolean;
 }
 
-let appImplInitialized = false;
+const integrationContext = IntegrationContext.create();
+const appImpl = AppImpl.createCoreInstance({
+  initialRouteArgs: {},
+  router: new Router(integrationContext),
+  integrationContext,
+});
 
 export function initializeAppImplForTesting(): AppImpl {
-  if (!appImplInitialized) {
-    appImplInitialized = true;
-    AppImpl.initialize({initialRouteArgs: {}});
-  }
-  return AppImpl.instance;
+  return appImpl;
 }
 
 // For testing purposes only.
@@ -55,13 +58,13 @@ export function createFakeTraceImpl(args: FakeTraceImplArgs = {}) {
     cached: false,
     downloadable: false,
   };
-  AppImpl.instance.closeCurrentTrace();
+  appImpl.closeCurrentTrace();
   const trace = TraceImpl.createInstanceForCore(
-    AppImpl.instance,
+    appImpl,
     new FakeEngine(args.allowQueries ?? false),
     fakeTraceInfo,
   );
-  AppImpl.instance.setActiveTrace(trace);
+  appImpl.setActiveTrace(trace);
   return trace;
 }
 

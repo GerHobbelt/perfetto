@@ -19,7 +19,6 @@ import {Rect2D} from '../../base/geom';
 import {TimeScale} from '../../base/time_scale';
 import {AppImpl} from '../../core/app_impl';
 import {featureFlags} from '../../core/feature_flags';
-import {raf} from '../../core/raf_scheduler';
 import {OverviewTimeline} from './overview_timeline_panel';
 import {TabPanel} from './tab_panel';
 import {TimelineHeader} from './timeline_header';
@@ -35,17 +34,18 @@ const OVERVIEW_PANEL_FLAG = featureFlags.register({
   defaultValue: true,
 });
 
-export function renderViewerPage() {
+export function renderViewerPage(app: AppImpl) {
   // Only render if a trace is loaded
-  const trace = AppImpl.instance.trace;
+  const trace = app.trace;
   if (trace) {
-    return m(ViewerPage, {trace});
+    return m(ViewerPage, {app, trace});
   } else {
     return undefined;
   }
 }
 
 export interface ViewerPageAttrs {
+  readonly app: AppImpl;
   readonly trace: TraceImpl;
 }
 
@@ -54,7 +54,7 @@ export class ViewerPage implements m.ClassComponent<ViewerPageAttrs> {
   private timelineBounds?: Rect2D;
 
   view({attrs}: m.CVnode<ViewerPageAttrs>) {
-    const {trace} = attrs;
+    const {app, trace} = attrs;
     return m(
       '.pf-viewer-page.page',
       m(
@@ -74,7 +74,7 @@ export class ViewerPage implements m.ClassComponent<ViewerPageAttrs> {
           onTimelineBoundsChange: (rect) => (this.timelineBounds = rect),
         }),
         // Hide tracks while the trace is loading to prevent thrashing.
-        !AppImpl.instance.isLoadingTrace && [
+        !app.isLoadingTrace && [
           // Don't render pinned tracks if we have none.
           trace.workspace.pinnedTracks.length > 0 &&
             m(TrackTreeView, {
@@ -99,10 +99,12 @@ export class ViewerPage implements m.ClassComponent<ViewerPageAttrs> {
 
   oncreate(vnode: m.VnodeDOM<ViewerPageAttrs>) {
     const {attrs, dom} = vnode;
+    const raf = attrs.app.raf;
 
     // Handles WASD keybindings to pan & zoom
     const panZoomHandler = new KeyboardNavigationHandler({
       element: toHTMLElement(dom),
+      raf,
       onPanned: (pannedPx: number) => {
         if (!this.timelineBounds) return;
         const timeline = attrs.trace.timeline;

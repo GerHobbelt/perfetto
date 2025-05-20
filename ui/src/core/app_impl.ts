@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {assertExists, assertTrue} from '../base/logging';
 import {App} from '../public/app';
 import {TraceContext, TraceImpl} from './trace_impl';
 import {CommandManagerImpl} from './command_manager';
 import {OmniboxManagerImpl} from './omnibox_manager';
-import {raf} from './raf_scheduler';
+import {RafScheduler} from './raf_scheduler';
 import {SidebarManagerImpl} from './sidebar_manager';
 import {PluginManagerImpl} from './plugin_manager';
 import {NewEngineMode} from '../trace_processor/engine';
@@ -36,7 +35,6 @@ import {PerfManager} from './perf_manager';
 import {ServiceWorkerController} from '../frontend/service_worker_controller';
 import {FeatureFlagManager, FlagSettings} from '../public/feature_flag';
 import {featureFlags} from './feature_flags';
-import {Raf} from '../public/raf';
 import {AsyncLimiter} from '../base/async_limiter';
 import {
   PERFETTO_SETTINGS_STORAGE_KEY,
@@ -46,13 +44,20 @@ import {SettingsManager} from '../public/settings';
 import {LocalStorage} from './local_storage';
 import {IntegrationContext} from './integration_context';
 import {TraceStream} from './trace_stream';
+import {adapt, adapterRegistry} from '../base/adapter';
 import {defer} from '../base/deferred';
 import {Trace} from '../public/trace';
+import {TaskTracker} from '../frontend/task_tracker';
+import {AsyncDisposableStack, DisposableStack} from '../base/disposable_stack';
 
 // The args that frontend/index.ts passes when calling AppImpl.initialize().
 // This is to deal with injections that would otherwise cause circular deps.
 export interface AppInitArgs {
   initialRouteArgs: RouteArgs;
+  router: Router;
+  /**
+   * Context injected from the host application, if there is such host.
+   */
   integrationContext?: IntegrationContext;
 }
 
@@ -64,20 +69,22 @@ export interface AppInitArgs {
  * This class is only exposed to TraceImpl, nobody else should refer to this
  * and should use AppImpl instead.
  */
-export class AppContext {
+export class AppContext implements Disposable {
   // The per-plugin instances of AppImpl (including the CORE_PLUGIN one).
   private readonly pluginInstances = new Map<string, AppImpl>();
-  readonly commandMgr = new CommandManagerImpl();
+  readonly raf = new RafScheduler();
+  readonly commandMgr = new CommandManagerImpl(this.raf);
   readonly omniboxMgr = new OmniboxManagerImpl();
-  readonly pageMgr = new PageManagerImpl();
+  readonly pageMgr: PageManagerImpl;
   readonly sidebarMgr: SidebarManagerImpl;
   readonly pluginMgr: PluginManagerImpl;
-  readonly perfMgr = new PerfManager();
+  readonly perfMgr = new PerfManager(this.raf);
   readonly analytics: AnalyticsInternal;
   readonly serviceWorkerController: ServiceWorkerController;
   httpRpc = {
     newEngineMode: 'USE_HTTP_RPC_IF_AVAILABLE' as NewEngineMode,
     httpRpcAvailable: false,
+    rpcPort: '9001',
   };
   initialRouteArgs: RouteArgs;
   isLoadingTrace = false; // Set when calling openTrace().
@@ -89,7 +96,16 @@ export class AppContext {
     new LocalStorage(PERFETTO_SETTINGS_STORAGE_KEY),
   );
 
-  readonly integrationContext: IntegrationContext;
+  /**
+   * The integration context. If there is no integration context,
+   * then there is no host application in which Perfetto is integrated.
+   */
+  readonly integrationContext?: IntegrationContext;
+  readonly router: Router;
+
+  readonly taskTracker = new TaskTracker();
+  private readonly trash = new DisposableStack();
+  private readonly asyncTrash = new AsyncDisposableStack();
 
   // This is normally empty and is injected with extra google-internal packages
   // via is_internal_user.js
@@ -98,39 +114,50 @@ export class AppContext {
   // The currently open trace.
   currentTrace?: TraceContext;
 
-  private static _instance: AppContext;
-
-  static initialize(initArgs: AppInitArgs): AppContext {
-    assertTrue(AppContext._instance === undefined);
-    return (AppContext._instance = new AppContext(initArgs));
+  static create(initArgs: AppInitArgs): AppContext {
+    return new AppContext(initArgs);
   }
 
-  static get instance(): AppContext {
-    return assertExists(AppContext._instance);
+  onDispose(disposable: Disposable | (() => void)) {
+    if (typeof disposable === 'function') {
+      this.trash.defer(disposable);
+    } else {
+      this.trash.use(disposable);
+    }
   }
 
   // This constructor is invoked only once, when frontend/index.ts invokes
   // AppMainImpl.initialize().
   private constructor(initArgs: AppInitArgs) {
     this.initArgs = initArgs;
-    this.integrationContext = initArgs.integrationContext ?? IntegrationContext.initialize();
-    this.initialRouteArgs = {...initArgs.initialRouteArgs, ...this.integrationContext.initialRouteArgs};
-    this.serviceWorkerController = new ServiceWorkerController();
+    this.router = initArgs.router;
+    this.integrationContext = initArgs.integrationContext;
+    this.initialRouteArgs = {...initArgs.initialRouteArgs, ...(this.integrationContext?.initialRouteArgs ?? {})};
+    this.serviceWorkerController = new ServiceWorkerController(this.raf, this.integrationContext);
     this.embeddedMode = this.initialRouteArgs.mode === 'embedded';
     this.testingMode =
       self.location !== undefined &&
       self.location.search.indexOf('testing=1') >= 0;
+    this.pageMgr = new PageManagerImpl(initArgs.router);
     this.sidebarMgr = new SidebarManagerImpl({
       disabled: this.embeddedMode,
       hidden: this.initialRouteArgs.hideSidebar,
     });
-    this.analytics = initAnalytics(this.testingMode, this.embeddedMode);
+    this.analytics = initAnalytics(this.testingMode, this.embeddedMode, this.router);
     this.pluginMgr = new PluginManagerImpl({
       forkForPlugin: (pluginId) => this.forPlugin(pluginId),
       get trace() {
-        return AppImpl.instance.trace;
+        return this.trace;
       },
     });
+
+    this.trash.use(this.taskTracker);
+    this.asyncTrash.use(this.serviceWorkerController);
+    this.trash.defer(() => void this.asyncTrash.asyncDispose());
+  }
+
+  [Symbol.dispose](): void {
+    this.trash.dispose();
   }
 
   // Gets or creates an instance of AppImpl backed by the current AppContext
@@ -178,16 +205,14 @@ export class AppImpl implements App {
   private readonly appCtx: AppContext;
   private readonly pageMgrProxy: PageManagerImpl;
 
-  // Invoked by frontend/index.ts.
-  static initialize(args: AppInitArgs) {
-    AppContext.initialize(args).forPlugin(CORE_PLUGIN_ID);
-  }
-
-  // Gets access to the one instance that the core can use. Note that this is
+  // Creates the one instance that the core can use. Note that this is
   // NOT the only instance, as other AppImpl instance will be created for each
   // plugin.
-  static get instance(): AppImpl {
-    return AppContext.instance.forPlugin(CORE_PLUGIN_ID);
+  static createCoreInstance(initArgs: AppInitArgs): AppImpl {
+    const ctx = AppContext.create(initArgs);
+    const result = ctx.forPlugin(CORE_PLUGIN_ID);
+    result.onDispose(ctx);
+    return result;
   }
 
   // Only called by AppContext.forPlugin().
@@ -226,6 +251,11 @@ export class AppImpl implements App {
     return this.appCtx.forPlugin(pluginId);
   }
 
+  // Add a disposable to the shared application context (not for plugins to use!)
+  onDispose(disposable: Disposable | (() => void)) {
+    this.appCtx.onDispose(disposable);
+  }
+
   get commands(): CommandManagerImpl {
     return this.appCtx.commandMgr;
   }
@@ -254,8 +284,8 @@ export class AppImpl implements App {
     return this.appCtx.currentTrace?.forPlugin(this.pluginId);
   }
 
-  get raf(): Raf {
-    return raf;
+  get raf(): RafScheduler {
+    return this.appCtx.raf;
   }
 
   get httpRpc() {
@@ -272,7 +302,7 @@ export class AppImpl implements App {
 
   get featureFlags(): FeatureFlagManager {
     return {
-      register: (settings: FlagSettings) => featureFlags.register(settings),
+      register: (settings: FlagSettings) => featureFlags.register(settings, true),
     };
   }
 
@@ -347,7 +377,7 @@ export class AppImpl implements App {
         result.reject(error);
       } finally {
         this.appCtx.isLoadingTrace = false;
-        raf.scheduleFullRedraw();
+        this.raf.scheduleFullRedraw();
       }
     });
 
@@ -387,6 +417,10 @@ export class AppImpl implements App {
     return this.appCtx.serviceWorkerController;
   }
 
+  get taskTracker(): TaskTracker {
+    return this.appCtx.taskTracker;
+  }
+
   // Nothing other than TraceImpl's constructor should ever refer to this.
   // This is necessary to avoid circular dependencies between trace_impl.ts
   // and app_impl.ts.
@@ -398,7 +432,39 @@ export class AppImpl implements App {
     return this.appCtx.integrationContext;
   }
 
+  get router() {
+    return this.appCtx.router;
+  }
+
   navigate(newHash: string): void {
-    Router.navigate(newHash);
+    this.router.navigate(newHash);
   }
 }
+
+// A convenience interface to inject the App in Mithril components.
+export interface AppImplAttrs {
+  app: AppImpl;
+}
+
+// Register adapters for the AppContext and, from the app context, for objects
+// like the core App and the Router.
+adapterRegistry.register((obj) => {
+  if (obj instanceof AppImpl) {
+    return obj.__appCtxForTrace;
+  }
+  return undefined;
+}, AppContext).register((obj) => {
+  const appCtx = adapt(obj, AppContext);
+  return appCtx && appCtx.forPlugin(CORE_PLUGIN_ID);
+}, App).register((obj) => {
+  const appCtx = adapt(obj, AppContext);
+  return appCtx && appCtx.router;
+}, Router).register((obj) => {
+  const app = adapt<App>(obj, App);
+  return (app instanceof AppImpl) ? app : undefined;
+}, AppImpl).register((obj) => {
+  if (obj instanceof TraceImpl) {
+    return obj.__traceCtxForApp.appCtx;
+  }
+  return undefined;
+}, AppContext);

@@ -23,7 +23,6 @@ import {TimeScale} from '../../base/time_scale';
 import {getOrCreate} from '../../base/utils';
 import {ZonedInteractionHandler} from '../../base/zoned_interaction_handler';
 import {colorForCpu} from '../../components/colorizer';
-import {raf} from '../../core/raf_scheduler';
 import {TraceImpl} from '../../core/trace_impl';
 import {TimestampFormat} from '../../public/timeline';
 import {LONG, NUM} from '../../trace_processor/query_result';
@@ -367,6 +366,7 @@ class OverviewDataLoader {
       const progress = start - traceSpan.start;
       const ratio = Number(progress) / Number(traceSpan.duration);
       this.trace.omnibox.showStatusMessage(
+        this.trace,
         'Loading overview ' + `${Math.round(ratio * 100)}%`,
       );
       const end = Time.add(start, stepSize);
@@ -453,6 +453,6 @@ class OverviewDataLoader {
         this.overviewData.get(key)!.push(value);
       }
     }
-    raf.scheduleCanvasRedraw();
+    this.trace.raf.scheduleCanvasRedraw();
   }
 }

@@ -14,33 +14,33 @@
 
 import m from 'mithril';
 import {classNames} from '../base/classnames';
-import {taskTracker} from './task_tracker';
 import {Popup, PopupPosition} from '../widgets/popup';
 import {assertFalse} from '../base/logging';
 import {OmniboxMode} from '../core/omnibox_manager';
-import {AppImpl} from '../core/app_impl';
-import {TraceImpl, TraceImplAttrs} from '../core/trace_impl';
+import {AppImplAttrs} from '../core/app_impl';
+import {OptionalTraceImplAttrs, TraceImplAttrs} from '../core/trace_impl';
 
-class Progress implements m.ClassComponent<TraceImplAttrs> {
-  view({attrs}: m.CVnode<TraceImplAttrs>): m.Children {
+class Progress implements m.ClassComponent<AppImplAttrs & TraceImplAttrs> {
+  view({attrs}: m.CVnode<AppImplAttrs & TraceImplAttrs>): m.Children {
+    const app = attrs.app;
     const engine = attrs.trace.engine;
     const isLoading =
-      AppImpl.instance.isLoadingTrace ||
+      app.isLoadingTrace ||
       engine.numRequestsPending > 0 ||
-      taskTracker.hasPendingTasks();
+      app.taskTracker.hasPendingTasks();
     const classes = classNames(isLoading && 'progress-anim');
     return m('.progress', {class: classes});
   }
 }
 
-class TraceErrorIcon implements m.ClassComponent<TraceImplAttrs> {
+class TraceErrorIcon implements m.ClassComponent<AppImplAttrs & TraceImplAttrs> {
   private tracePopupErrorDismissed = false;
 
-  view({attrs}: m.CVnode<TraceImplAttrs>) {
-    const trace = attrs.trace;
-    if (AppImpl.instance.embeddedMode) return;
+  view({attrs}: m.CVnode<AppImplAttrs & TraceImplAttrs>) {
+    const {app, trace} = attrs;
+    if (app.embeddedMode) return;
 
-    const mode = AppImpl.instance.omnibox.mode;
+    const mode = app.omnibox.mode;
     const totErrors = trace.traceInfo.importErrors + trace.loadingErrors.length;
     if (totErrors === 0 || mode === OmniboxMode.Command) {
       return;
@@ -52,11 +52,11 @@ class TraceErrorIcon implements m.ClassComponent<TraceImplAttrs> {
     const icon = m(
       'i.material-icons',
       {
-        title: message + ` Click for more info.`
+        title: message + ` Click for more info.`,
       },
       'announcement');
 
-    const viewOpener = AppImpl.instance.integrationContext.viewOpener;
+    const viewOpener = app.integrationContext?.viewOpener;
     const infoButton = viewOpener ?
        m('button.error', {onclick: () => viewOpener('#!/info')}, icon) :
        m('a.error', {href: '#!/info'}, icon);
@@ -81,22 +81,21 @@ class TraceErrorIcon implements m.ClassComponent<TraceImplAttrs> {
   }
 }
 
-export interface TopbarAttrs {
+export interface TopbarAttrs extends AppImplAttrs, OptionalTraceImplAttrs {
   omnibox: m.Children;
-  trace?: TraceImpl;
 }
 
 export class Topbar implements m.ClassComponent<TopbarAttrs> {
   view({attrs}: m.Vnode<TopbarAttrs>) {
-    const {omnibox} = attrs;
+    const {app, omnibox, trace} = attrs;
     return m(
       '.topbar',
       {
-        class: AppImpl.instance.sidebar.visible ? '' : 'hide-sidebar',
+        class: app.sidebar.visible ? '' : 'hide-sidebar',
       },
       omnibox,
-      attrs.trace && m(Progress, {trace: attrs.trace}),
-      attrs.trace && m(TraceErrorIcon, {trace: attrs.trace}),
+      trace && m(Progress, {app, trace}),
+      trace && m(TraceErrorIcon, {app, trace}),
     );
   }
 }

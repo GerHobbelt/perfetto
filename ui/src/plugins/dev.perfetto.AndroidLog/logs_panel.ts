@@ -129,7 +129,7 @@ export class LogPanel implements m.ClassComponent<LogPanelAttrs> {
           // columns will pull the columns to the right out of line.
           {header: 'Message', width: ''},
         ],
-        rows: this.renderRows(hasMachineIds, hasProcessNames),
+        rows: this.renderRows(attrs.trace, hasMachineIds, hasProcessNames),
         firstRowOffset: this.entries?.offset ?? 0,
         numRows: this.entries?.totalEvents ?? 0,
         rowHeight: ROW_H,
@@ -167,6 +167,7 @@ export class LogPanel implements m.ClassComponent<LogPanelAttrs> {
   }
 
   private renderRows(
+    trace: Trace,
     hasMachineIds: boolean | undefined,
     hasProcessNames: boolean | undefined,
   ): VirtualTableRow[] {
@@ -195,7 +196,7 @@ export class LogPanel implements m.ClassComponent<LogPanelAttrs> {
         ),
         cells: [
           ...(hasMachineIds ? [machineIds[i]] : []),
-          m(Timestamp, {ts}),
+          m(Timestamp, {trace, ts}),
           priorityLetter || '?',
           tags[i],
           ...(hasProcessNames ? [processNames[i]] : []),

@@ -16,6 +16,7 @@ import {AsyncLimiter} from '../base/async_limiter';
 import {sqliteString} from '../base/string_utils';
 import {Time} from '../base/time';
 import {exists} from '../base/utils';
+import {Raf} from '../public/raf';
 import {ResultStepEventHandler} from '../public/search';
 import {
   ANDROID_LOGS_TRACK_KIND,
@@ -27,7 +28,6 @@ import {LONG, NUM, STR} from '../trace_processor/query_result';
 import {escapeSearchQuery} from '../trace_processor/query_utils';
 import {searchTrackEvents} from './dataset_search';
 import {featureFlags} from './feature_flags';
-import {raf} from './raf_scheduler';
 import {SearchSource} from './search_data';
 import {TimelineImpl} from './timeline';
 import {TrackManagerImpl} from './track_manager';
@@ -58,6 +58,7 @@ export class SearchManagerImpl {
 
   // TODO(primiano): once we get rid of globals, these below can be made always
   // defined. the ?: is to deal with globals-before-trace-load.
+  private _raf?: Raf;
   private _timeline?: TimelineImpl;
   private _trackManager?: TrackManagerImpl;
   private _workspace?: Workspace;
@@ -66,12 +67,14 @@ export class SearchManagerImpl {
   private _onResultStep?: ResultStepEventHandler;
 
   constructor(args?: {
+    raf: Raf,
     timeline: TimelineImpl;
     trackManager: TrackManagerImpl;
     workspace: Workspace;
     engine: Engine;
     onResultStep: ResultStepEventHandler;
   }) {
+    this._raf = args?.raf;
     this._timeline = args?.timeline;
     this._trackManager = args?.trackManager;
     this._engine = args?.engine;
@@ -97,7 +100,7 @@ export class SearchManagerImpl {
           await this.executeSearch();
         }
         this._searchInProgress = false;
-        raf.scheduleFullRedraw();
+        this._raf?.scheduleFullRedraw();
       });
     }
   }

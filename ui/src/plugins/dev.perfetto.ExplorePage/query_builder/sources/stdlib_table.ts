@@ -147,7 +147,7 @@ export class StdlibTableNode implements QueryNode {
 
 export class StdlibTableSource implements m.ClassComponent<StdlibTableAttrs> {
   async onTableSelect(attrs: StdlibTableAttrs) {
-    closeModal();
+    closeModal(attrs.trace);
     const tableName = await attrs.trace.omnibox.prompt(
       'Choose a table...',
       attrs.sqlModules.listTablesNames(),

@@ -15,7 +15,7 @@
 import {Setting} from '../../public/settings';
 import {SettingsManagerImpl} from '../../core/settings_manager';
 import m from 'mithril';
-import {AppImpl} from '../../core/app_impl';
+import {AppImplAttrs} from '../../core/app_impl';
 import {z} from 'zod';
 import {Button, ButtonBar, ButtonVariant} from '../../widgets/button';
 import {Card, CardList} from '../../widgets/card';
@@ -28,11 +28,11 @@ import {Intent} from '../../widgets/common';
 import {EmptyState} from '../../widgets/empty_state';
 import {classNames} from '../../base/classnames';
 
-export class SettingsPage implements m.ClassComponent {
+export class SettingsPage implements m.ClassComponent<AppImplAttrs> {
   private filterText = '';
 
-  view() {
-    const app = AppImpl.instance;
+  view({attrs}: m.Vnode<AppImplAttrs>) {
+    const app = attrs.app;
     const settingsManager = app.settings as SettingsManagerImpl;
     const allSettings = settingsManager.getAllSettings();
     const reloadRequired = settingsManager.isReloadRequired();

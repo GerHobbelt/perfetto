@@ -24,7 +24,6 @@ import {Time, time} from '../../base/time';
 import {exists} from '../../base/utils';
 import {uuidv4Sql} from '../../base/uuid';
 import {featureFlags} from '../../core/feature_flags';
-import {raf} from '../../core/raf_scheduler';
 import {Trace} from '../../public/trace';
 import {
   Slice,
@@ -734,7 +733,7 @@ export abstract class BaseSliceTrack<
     this.onUpdatedSlices(slices);
     this.slices = slices;
 
-    raf.scheduleCanvasRedraw();
+    this.trace.raf.scheduleCanvasRedraw();
   }
 
   private rowToSliceInternal(row: RowT): CastInternal<SliceT> {

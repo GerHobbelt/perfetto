@@ -22,7 +22,6 @@ import {
   AreaSelectionTab,
 } from '../public/selection';
 import {TimeSpan} from '../base/time';
-import {raf} from './raf_scheduler';
 import {exists, getOrCreate} from '../base/utils';
 import {TrackManagerImpl} from './track_manager';
 import {Engine} from '../trace_processor/engine';
@@ -35,6 +34,8 @@ import {SerializedSelection} from './state_serialization_schema';
 import {showModal} from '../widgets/modal';
 import {NUM, SqlValue, UNKNOWN} from '../trace_processor/query_result';
 import {SourceDataset, UnionDataset} from '../trace_processor/dataset';
+import {App} from '../public/app';
+import {Raf} from '../public/raf';
 import {Track} from '../public/track';
 
 interface SelectionDetailsPanel {
@@ -62,6 +63,7 @@ export class SelectionManagerImpl implements SelectionManager {
 
   constructor(
     private readonly engine: Engine,
+    private readonly raf: Raf,
     private trackManager: TrackManagerImpl,
     private noteManager: NoteManagerImpl,
     private scrollHelper: ScrollHelper,
@@ -119,14 +121,14 @@ export class SelectionManagerImpl implements SelectionManager {
     );
   }
 
-  deserialize(serialized: SerializedSelection | undefined) {
+  deserialize(app: App, serialized: SerializedSelection | undefined) {
     if (serialized === undefined) {
       return;
     }
-    this.deserializeInternal(serialized);
+    this.deserializeInternal(app, serialized);
   }
 
-  private async deserializeInternal(serialized: SerializedSelection) {
+  private async deserializeInternal(app: App, serialized: SerializedSelection) {
     try {
       switch (serialized.kind) {
         case 'TRACK_EVENT':
@@ -145,7 +147,7 @@ export class SelectionManagerImpl implements SelectionManager {
           });
       }
     } catch (ex) {
-      showModal({
+      showModal(app, {
         title: 'Failed to restore the selected event',
         content: m(
           'div',
@@ -443,7 +445,7 @@ export class SelectionManagerImpl implements SelectionManager {
     this.detailsPanelLimiter.schedule(async () => {
       await panel?.load?.(selection);
       detailsPanel.isLoading = false;
-      raf.scheduleFullRedraw();
+      this.raf.scheduleFullRedraw();
     });
   }
 

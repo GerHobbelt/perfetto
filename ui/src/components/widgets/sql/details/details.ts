@@ -16,7 +16,6 @@ import m from 'mithril';
 import {Brand} from '../../../../base/brand';
 import {Time} from '../../../../base/time';
 import {exists} from '../../../../base/utils';
-import {raf} from '../../../../core/raf_scheduler';
 import {Engine} from '../../../../trace_processor/engine';
 import {Row} from '../../../../trace_processor/query_result';
 import {
@@ -289,7 +288,7 @@ export type RenderedValue = {
 // the vdom.
 export type SqlIdRefRenderer = {
   fetch: (engine: Engine, id: bigint) => Promise<{} | undefined>;
-  render: (data: {}) => RenderedValue;
+  render: (trace: Trace, data: {}) => RenderedValue;
 };
 
 // === Impl details ===
@@ -560,7 +559,7 @@ class DataController {
     }
 
     this.data = data;
-    raf.scheduleFullRedraw();
+    this.trace.raf.scheduleFullRedraw();
   }
 
   // Add a given expression to the list of expressions to fetch and return its
@@ -739,6 +738,7 @@ function renderValue(
         );
       } else {
         rhs = m(TimestampWidget, {
+          trace,
           ts: Time.fromRaw(ts),
         });
       }
@@ -754,6 +754,7 @@ function renderValue(
         right:
           typeof dur === 'bigint' &&
           m(DurationWidget, {
+            trace,
             dur,
           }),
       });
@@ -766,6 +767,7 @@ function renderValue(
         right:
           typeof dur === 'bigint' &&
           m(DurationWidget, {
+            trace,
             dur,
           }),
       });
@@ -786,7 +788,7 @@ function renderValue(
             `Unknown table ${ref.tableName} (${ref.tableName}[${refData.id}])`,
           );
         } else {
-          const rendered = renderer.render(refData.data);
+          const rendered = renderer.render(trace, refData.data);
           rhs = rendered.value;
           children = rendered.children;
         }

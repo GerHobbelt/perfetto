@@ -134,7 +134,7 @@ export class AggregationPanel
     return m(
       '.time-range',
       'Selected range: ',
-      m(DurationWidget, {dur: duration}),
+      m(DurationWidget, {trace: this.trace, dur: duration}),
     );
   }
 

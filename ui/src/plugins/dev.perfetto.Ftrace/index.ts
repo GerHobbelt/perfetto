@@ -73,7 +73,7 @@ export default class implements PerfettoPlugin {
           cpu: cpu.cpu,
           groupName: 'Ftrace Events',
         },
-        track: new FtraceRawTrack(ctx.engine, cpu.ucpu, filterStore),
+        track: new FtraceRawTrack(ctx, cpu.ucpu, filterStore),
       });
 
       const track = new TrackNode({uri, title});

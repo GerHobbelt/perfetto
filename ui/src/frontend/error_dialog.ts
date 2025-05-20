@@ -13,16 +13,17 @@
 // limitations under the License.
 
 import m from 'mithril';
-import {ErrorDetails} from '../base/logging';
+import {adapt} from '../base/adapter';
+import {assertExists, ErrorDetails} from '../base/logging';
 import {GcsUploader} from '../base/gcs_uploader';
-import {raf} from '../core/raf_scheduler';
+import {Router} from '../core/router';
+import {TraceInfoImpl} from '../core/trace_info_impl';
 import {VERSION} from '../gen/perfetto_version';
 import {getCurrentModalKey, showModal} from '../widgets/modal';
 import {globals} from './globals';
-import {AppImpl} from '../core/app_impl';
-import {Router} from '../core/router';
 import {Button, ButtonVariant} from '../widgets/button';
 import {Intent} from '../widgets/common';
+import {App} from '../public/app';
 
 const MODAL_KEY = 'crash_modal';
 
@@ -42,14 +43,14 @@ export function maybeShowErrorDialog(err: ErrorDetails) {
     err.stack.some((entry) => entry.name.includes('sbrk')) ||
     /^out of memory$/m.exec(err.message)
   ) {
-    showOutOfMemoryDialog();
+    showOutOfMemoryDialog(err.app);
     // Refresh timeLastReport to prevent a different error showing a dialog
     timeLastReport = now;
     return;
   }
 
   if (err.message.includes('Unable to claim interface')) {
-    showWebUSBError();
+    showWebUSBError(err.app);
     timeLastReport = now;
     return;
   }
@@ -59,30 +60,30 @@ export function maybeShowErrorDialog(err: ErrorDetails) {
     err.message.includes('The device was disconnected') ||
     err.message.includes('The transfer was cancelled')
   ) {
-    showConnectionLostError();
+    showConnectionLostError(err.app);
     timeLastReport = now;
     return;
   }
 
   if (err.message.includes('(ERR:fmt)')) {
-    showUnknownFileError();
+    showUnknownFileError(err.app);
     return;
   }
 
   if (err.message.includes('(ERR:rpc_seq)')) {
-    showRpcSequencingError();
+    showRpcSequencingError(err.app);
     return;
   }
 
   if (err.message.includes('(ERR:ws)')) {
-    showWebsocketConnectionIssue(err.message);
+    showWebsocketConnectionIssue(err.app, err.message);
     return;
   }
 
   // This is only for older version of the UI and for ease of tracking across
   // cherry-picks. Newer versions don't have this exception anymore.
   if (err.message.includes('State hash does not match')) {
-    showNewerStateError();
+    showNewerStateError(err.app);
     return;
   }
 
@@ -94,11 +95,11 @@ export function maybeShowErrorDialog(err: ErrorDetails) {
 
   // If we are already showing a crash dialog, don't overwrite it with a newer
   // crash. Usually the first crash matters, the rest avalanching effects.
-  if (getCurrentModalKey() === MODAL_KEY) {
+  if (getCurrentModalKey(err.app) === MODAL_KEY) {
     return;
   }
 
-  showModal({
+  showModal(err.app, {
     key: MODAL_KEY,
     title: 'Oops, something went wrong. Please file a bug.',
     content: () => m(ErrorDialogComponent, err),
@@ -106,6 +107,8 @@ export function maybeShowErrorDialog(err: ErrorDetails) {
 }
 
 class ErrorDialogComponent implements m.ClassComponent<ErrorDetails> {
+  private readonly app: App;
+
   private traceState:
     | 'NOT_AVAILABLE'
     | 'NOT_UPLOADED'
@@ -120,9 +123,10 @@ class ErrorDialogComponent implements m.ClassComponent<ErrorDetails> {
   private errorMessage = '';
   private uploader?: GcsUploader;
 
-  constructor() {
+  constructor({attrs}: m.Vnode<ErrorDetails>) {
+    this.app = attrs.app;
     this.traceState = 'NOT_AVAILABLE';
-    const traceSource = AppImpl.instance.trace?.traceInfo.source;
+    const traceSource = (this.app.trace?.traceInfo as TraceInfoImpl).source;
     if (traceSource === undefined) return;
     this.traceType = traceSource.type;
     // If the trace is either already uploaded, or comes from a postmessage+url
@@ -245,7 +249,7 @@ class ErrorDialogComponent implements m.ClassComponent<ErrorDetails> {
       this.uploadStatus = '';
       const uploader = new GcsUploader(this.traceData, {
         onProgress: () => {
-          raf.scheduleFullRedraw();
+          this.app.raf.scheduleFullRedraw();
           this.uploadStatus = uploader.getEtaString();
           if (uploader.state === 'UPLOADED') {
             this.traceState = 'UPLOADED';
@@ -279,7 +283,7 @@ class ErrorDialogComponent implements m.ClassComponent<ErrorDetails> {
   }
 }
 
-function showOutOfMemoryDialog() {
+function showOutOfMemoryDialog(app: App) {
   const url =
     'https://perfetto.dev/docs/quickstart/trace-analysis#get-trace-processor';
 
@@ -288,7 +292,7 @@ function showOutOfMemoryDialog() {
     'chmod +x ./trace_processor\n' +
     'trace_processor --httpd /path/to/trace.pftrace\n' +
     '# Reload the UI, it will prompt to use the HTTP+RPC interface';
-  showModal({
+  showModal(app, {
     title: 'Oops! Your WASM trace processor ran out of memory',
     content: m(
       'div',
@@ -313,8 +317,8 @@ function showOutOfMemoryDialog() {
   });
 }
 
-function showUnknownFileError() {
-  showModal({
+function showUnknownFileError(app: App) {
+  showModal(app, {
     title: 'Cannot open this file',
     content: m(
       'div',
@@ -336,8 +340,8 @@ function showUnknownFileError() {
   });
 }
 
-function showWebUSBError() {
-  showModal({
+function showWebUSBError(app: App) {
+  showModal(app, {
     title: 'A WebUSB error occurred',
     content: m(
       'div',
@@ -355,8 +359,8 @@ function showWebUSBError() {
   });
 }
 
-function showRpcSequencingError() {
-  showModal({
+function showRpcSequencingError(app: App) {
+  showModal(app, {
     title: 'A TraceProcessor RPC error occurred',
     content: m(
       'div',
@@ -376,8 +380,8 @@ at most one tab at a time.`,
   });
 }
 
-function showNewerStateError() {
-  showModal({
+function showNewerStateError(app: App) {
+  showModal(app, {
     title: 'Cannot deserialize the permalink',
     content: m(
       'div',
@@ -399,14 +403,14 @@ function showNewerStateError() {
       {
         text: 'Take me to the flags page',
         primary: true,
-        action: () => Router.navigate('#!/flags/releaseChannel'),
+        action: () => getRouter(app).navigate('#!/flags/releaseChannel'),
       },
     ],
   });
 }
 
-function showWebsocketConnectionIssue(message: string): void {
-  showModal({
+function showWebsocketConnectionIssue(app: App, message: string): void {
+  showModal(app, {
     title: 'Unable to connect to the device via websocket',
     content: m(
       'div',
@@ -416,8 +420,8 @@ function showWebsocketConnectionIssue(message: string): void {
   });
 }
 
-function showConnectionLostError(): void {
-  showModal({
+function showConnectionLostError(app: App): void {
+  showModal(app, {
     title: 'Connection with the ADB device lost',
     content: m(
       'div',
@@ -425,4 +429,9 @@ function showConnectionLostError(): void {
       m('br'),
     ),
   });
+}
+
+function getRouter(app: App): Router {
+  const result = adapt(app, Router);
+  return assertExists(result, 'app is not traceable to a Router');
 }

@@ -19,6 +19,7 @@ import {Store, TimelineFetcher} from '../../components/tracks/track_helper';
 import {checkerboardExcept} from '../../components/checkerboard';
 import {TrackData} from '../../components/tracks/track_data';
 import {Engine} from '../../trace_processor/engine';
+import {Trace} from '../../public/trace';
 import {TrackRenderer} from '../../public/track';
 import {LONG, NUM, STR} from '../../trace_processor/query_result';
 import {FtraceFilter} from './common';
@@ -44,13 +45,15 @@ export interface Config {
 
 export class FtraceRawTrack implements TrackRenderer {
   private fetcher = new TimelineFetcher(this.onBoundsChange.bind(this));
+  private trace: Trace;
   private engine: Engine;
   private ucpu: number;
   private store: Store<FtraceFilter>;
   private readonly monitor: Monitor;
 
-  constructor(engine: Engine, ucpu: number, store: Store<FtraceFilter>) {
-    this.engine = engine;
+  constructor(trace: Trace, ucpu: number, store: Store<FtraceFilter>) {
+    this.trace = trace;
+    this.engine = trace.engine;
     this.ucpu = ucpu;
     this.store = store;
 
@@ -83,7 +86,7 @@ export class FtraceRawTrack implements TrackRenderer {
     this.monitor.ifStateChanged(() => {
       this.fetcher.invalidate();
     });
-    await this.fetcher.requestData(visibleWindow.toTimeSpan(), resolution);
+    await this.fetcher.requestData(this.trace, visibleWindow.toTimeSpan(), resolution);
   }
 
   async onDestroy?(): Promise<void> {

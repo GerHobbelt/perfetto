@@ -13,7 +13,10 @@
 // limitations under the License.
 
 import m from 'mithril';
+import {adapt} from '../../base/adapter';
 import {copyToClipboard} from '../../base/clipboard';
+import {assertExists} from '../../base/logging';
+import {Router} from '../../core/router';
 import {QueryResponse} from './queries';
 import {Row} from '../../trace_processor/query_result';
 import {Anchor} from '../../widgets/anchor';
@@ -21,7 +24,6 @@ import {Button} from '../../widgets/button';
 import {Callout} from '../../widgets/callout';
 import {DetailsShell} from '../../widgets/details_shell';
 import {downloadData} from '../../base/download_utils';
-import {Router} from '../../core/router';
 import {AppImpl} from '../../core/app_impl';
 import {Trace} from '../../public/trace';
 import {MenuItem, PopupMenu} from '../../widgets/menu';
@@ -91,10 +93,11 @@ class QueryTableRow implements m.ClassComponent<QueryTableRowAttrs> {
   view(vnode: m.Vnode<QueryTableRowAttrs>) {
     const {row, columns} = vnode.attrs;
     const cells = columns.map((col) => this.renderCell(col, row[col]));
+    const router = assertExists(adapt(this.trace, Router));
 
     // TODO(dproy): Make click handler work from analyze page.
     if (
-      Router.parseUrl(window.location.href).page === '/viewer' &&
+      router.parseUrl(window.location.href).page === '/viewer' &&
       isSliceish(row)
     ) {
       return m(
@@ -234,7 +237,7 @@ export class QueryTable implements m.ClassComponent<QueryTableAttrs> {
       return 'Query - running';
     }
     const result = resp.error ? 'error' : `${resp.rows.length} rows`;
-    if (AppImpl.instance.testingMode) {
+    if (getApp(this.trace).testingMode) {
       // Omit the duration in tests, they cause screenshot diff failures.
       return `Query result (${result})`;
     }
@@ -404,4 +407,9 @@ async function queryResponseAsMarkdownToClipboard(
     .join('\n');
 
   await copyToClipboard(text);
+}
+
+function getApp(trace: Trace): AppImpl {
+  const result = adapt(trace, AppImpl);
+  return assertExists(result, 'trace is not adaptable to an AppImpl');
 }

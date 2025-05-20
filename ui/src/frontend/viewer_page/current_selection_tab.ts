@@ -13,8 +13,7 @@
 // limitations under the License.
 
 import m from 'mithril';
-import {raf} from '../../core/raf_scheduler';
-import {TraceImpl} from '../../core/trace_impl';
+import {TraceImpl, TraceImplAttrs} from '../../core/trace_impl';
 import {DetailsShell} from '../../widgets/details_shell';
 import {EmptyState} from '../../widgets/empty_state';
 import {GridLayout, GridLayoutColumn} from '../../widgets/grid_layout';
@@ -42,7 +41,7 @@ export class CurrentSelectionTab
   view({attrs}: m.Vnode<CurrentSelectionTabAttrs>): m.Children {
     const section = this.renderCurrentSelectionTabContent(attrs.trace);
     if (section.isLoading) {
-      return m(FadeIn, section.content);
+      return m(FadeIn, {trace: attrs.trace});
     } else {
       return m(FadeOut, {context: this.fadeContext}, section.content);
     }
@@ -224,17 +223,17 @@ class FadeOut implements m.ClassComponent<FadeOutAttrs> {
   }
 }
 
-class FadeIn implements m.ClassComponent {
+class FadeIn implements m.ClassComponent<TraceImplAttrs> {
   private show = false;
 
-  oncreate(_: m.VnodeDOM) {
+  oncreate({attrs}: m.VnodeDOM<TraceImplAttrs>) {
     setTimeout(() => {
       this.show = true;
-      raf.scheduleFullRedraw();
+      attrs.trace.raf.scheduleFullRedraw();
     }, FADE_TIME_MS);
   }
 
-  view(vnode: m.Vnode): m.Children {
+  view(vnode: m.Vnode<TraceImplAttrs>): m.Children {
     return this.show ? vnode.children : undefined;
   }
 }

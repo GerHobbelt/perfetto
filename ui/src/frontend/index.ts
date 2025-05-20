@@ -22,7 +22,7 @@ import {defer} from '../base/deferred';
 import {addErrorHandler, reportError} from '../base/logging';
 import {featureFlags} from '../core/feature_flags';
 import {initLiveReload} from '../core/live_reload';
-import {raf} from '../core/raf_scheduler';
+import {RafScheduler} from '../core/raf_scheduler';
 import {initWasm} from '../trace_processor/wasm_engine_proxy';
 import {UiMain} from './ui_main';
 import {initCssConstants} from './css_constants';
@@ -36,8 +36,7 @@ import {Route, Router} from '../core/router';
 import {CheckHttpRpcConnection} from './rpc_http_dialog';
 import {maybeOpenTraceFromRoute} from './trace_url_handler';
 import {renderViewerPage} from './viewer_page/viewer_page';
-import {HttpRpcEngine} from '../trace_processor/http_rpc_engine';
-import {showModal} from '../widgets/modal';
+import {closeModal, showModal} from '../widgets/modal';
 import {IdleDetector} from './idle_detector';
 import {IdleDetectorWindow} from './idle_detector_interface';
 import {AppImpl} from '../core/app_impl';
@@ -52,9 +51,6 @@ import {addQueryResultsTab} from '../components/query_table/query_result_tab';
 import {assetSrc, initAssets} from '../base/assets';
 import {IntegrationContext} from '../core/integration_context';
 
-export {globals} from './globals';
-export {ViewerPage} from './viewer_page/viewer_page';
-
 const CSP_WS_PERMISSIVE_PORT = featureFlags.register({
   id: 'cspAllowAnyWebsocketPort',
   name: 'Relax Content Security Policy for 127.0.0.1:*',
@@ -65,7 +61,7 @@ const CSP_WS_PERMISSIVE_PORT = featureFlags.register({
   defaultValue: false,
 });
 
-function routeChange(route: Route) {
+function routeChange(route: Route, app: AppImpl, raf: RafScheduler) {
   raf.scheduleFullRedraw(() => {
     if (route.fragment) {
       // This needs to happen after the next redraw call. It's not enough
@@ -78,14 +74,13 @@ function routeChange(route: Route) {
     }
   });
 
-  const integrationContext = IntegrationContext.instance;
+  const integrationContext = app.integrationContext;
   if (!integrationContext?.disableHashBasedRouting) {
-    maybeOpenTraceFromRoute(route);
+    maybeOpenTraceFromRoute(app, route);
   }
 }
 
-function setupContentSecurityPolicy() {
-  const integrationContext = IntegrationContext.instance;
+function setupContentSecurityPolicy(router: Router, integrationContext?: IntegrationContext) {
   const defaultSrc = integrationContext?.relaxContentSecurity ? [
     `'self'`,
     `'unsafe-inline'`,
@@ -112,7 +107,7 @@ function setupContentSecurityPolicy() {
     'ws://127.0.0.1:9167', // For Web Device Proxy.
   ];
   if (CSP_WS_PERMISSIVE_PORT.get()) {
-    const route = Router.parseUrl(window.location.href);
+    const route = router.parseUrl(window.location.href);
     if (/^\d+$/.exec(route.args.rpc_port ?? '')) {
       rpcPolicy = [
         `http://127.0.0.1:${route.args.rpc_port}`,
@@ -158,13 +153,18 @@ function setupContentSecurityPolicy() {
   document.head.appendChild(meta);
 }
 
-function main() {
+export function runApp(integrationContext?: IntegrationContext): AppImpl {
   // Setup content security policy before anything else.
-  setupContentSecurityPolicy();
-  initAssets();
-  AppImpl.initialize({
-    initialRouteArgs: Router.parseUrl(window.location.href).args,
+  const router = new Router(integrationContext);
+  setupContentSecurityPolicy(router, integrationContext);
+  initAssets(integrationContext?.rootRelativePath);
+  const raf = new RafScheduler();
+  const app = AppImpl.createCoreInstance({
+    initialRouteArgs: router.parseUrl(window.location.href).args,
+    router,
+    integrationContext,
   });
+  app.onDispose(globals.addApp(app));
 
   // Load the css. The load is asynchronous and the CSS is not ready by the time
   // appendChild returns.
@@ -182,7 +182,7 @@ function main() {
   // Load the script to detect if this is a Googler (see comments on globals.ts)
   // and initialize GA after that (or after a timeout if something goes wrong).
   function initAnalyticsOnScriptLoad() {
-    AppImpl.instance.analytics.initialize(globals.isInternalUser);
+    app.analytics.initialize(globals.isInternalUser);
   }
   const script = document.createElement('script');
   script.src =
@@ -196,14 +196,15 @@ function main() {
 
   // Route errors to both the UI bugreport dialog and Analytics (if enabled).
   addErrorHandler(maybeShowErrorDialog);
-  addErrorHandler((e) => AppImpl.instance.analytics.logError(e));
+  addErrorHandler((e) => app.analytics.logError(e));
+  app.onDispose(() => closeModal(app));
 
   // Add Error handlers for JS error and for uncaught exceptions in promises.
   window.addEventListener('error', (e) => reportError(e));
   window.addEventListener('unhandledrejection', (e) => reportError(e));
 
   initWasm();
-  AppImpl.instance.serviceWorkerController.install();
+  app.serviceWorkerController.install();
 
   // Put debug variables in the global scope for better debugging.
   registerDebugGlobals();
@@ -217,39 +218,40 @@ function main() {
     {passive: false},
   );
 
-  cssLoadPromise.then(() => onCssLoaded());
+  cssLoadPromise.then(() => onCssLoaded(app, router, raf));
 
-  if (AppImpl.instance.testingMode) {
+  if (app.testingMode) {
     document.body.classList.add('testing');
   }
 
   (window as {} as IdleDetectorWindow).waitForPerfettoIdle = (ms?: number) => {
-    return new IdleDetector().waitForPerfettoIdle(ms);
+    return new IdleDetector(app).waitForPerfettoIdle(ms);
   };
+
+  return app;
 }
 
-function onCssLoaded() {
+function onCssLoaded(app: AppImpl, router: Router, raf: RafScheduler) {
   initCssConstants();
-  const pages = AppImpl.instance.pages;
+  const pages = app.pages;
   pages.registerPage({route: '/', render: () => m(HomePage)});
-  pages.registerPage({route: '/viewer', render: () => renderViewerPage()});
-  const router = new Router();
-  router.onRouteChanged = routeChange;
+  pages.registerPage({route: '/viewer', render: () => renderViewerPage(app)});
+  router.onRouteChanged = (route) => routeChange(route, app, raf);
 
-  if (!IntegrationContext.instance?.disableMainRendering) {
+  if (!app.integrationContext?.disableMainRendering) {
     // Clear all the contents of the initial page (e.g. the <pre> error message)
     // And replace it with the root <main> element which will be used by mithril.
     document.body.innerHTML = '';
 
     // Mount the main mithril component. This also forces a sync render pass.
-    raf.mount(document.body, UiMain);
+    raf.mount(document.body, UiMain, {app});
   }
 
   if (
     (location.origin.startsWith('http://localhost:') ||
       location.origin.startsWith('http://127.0.0.1:')) &&
-    !AppImpl.instance.embeddedMode &&
-    !AppImpl.instance.testingMode
+    !app.embeddedMode &&
+    !app.testingMode
   ) {
     initLiveReload();
   }
@@ -260,33 +262,36 @@ function onCssLoaded() {
   // Don't auto-open any trace URLs until we get a response here because we may
   // accidentially clober the state of an open trace processor instance
   // otherwise.
-  maybeChangeRpcPortFromFragment();
-  CheckHttpRpcConnection().then(() => {
-    const route = Router.parseUrl(window.location.href);
-    if (!AppImpl.instance.embeddedMode && IntegrationContext.instance?.allowFileDrop) {
-      installFileDropHandler();
+  maybeChangeRpcPortFromFragment(app, router);
+  CheckHttpRpcConnection(app).then(() => {
+    const route = router.parseUrl(window.location.href);
+    if (!app.embeddedMode && app.integrationContext?.allowFileDrop) {
+      const uninstall = installFileDropHandler(app);
+      app.onDispose(uninstall);
     }
 
     // Don't allow postMessage or opening trace from route when the user says
     // that they want to reuse the already loaded trace in trace processor.
-    const traceSource = AppImpl.instance.trace?.traceInfo.source;
+    const traceSource = app.trace?.traceInfo.source;
     if (traceSource && traceSource.type === 'HTTP_RPC') {
       return;
     }
 
     // Add support for opening traces from postMessage().
-    window.addEventListener('message', postMessageHandler, {passive: true});
+    const messageHandler = postMessageHandler(app);
+    window.addEventListener('message', messageHandler, {passive: true});
+    app.onDispose(() => window.removeEventListener('message', messageHandler));
 
     // Handles the initial ?local_cache_key=123 or ?s=permalink or ?url=...
     // cases.
-    routeChange(route);
+    routeChange(route, app, raf);
   });
 
   // Initialize plugins, now that we are ready to go.
-  const pluginManager = AppImpl.instance.plugins;
+  const pluginManager = app.plugins;
   CORE_PLUGINS.forEach((p) => pluginManager.registerPlugin(p));
   NON_CORE_PLUGINS.forEach((p) => pluginManager.registerPlugin(p));
-  const route = Router.parseUrl(window.location.href);
+  const route = router.parseUrl(window.location.href);
   const overrides = (route.args.enablePlugins ?? '').split(',');
   pluginManager.activatePlugins(overrides);
 }
@@ -294,11 +299,11 @@ function onCssLoaded() {
 // If the URL is /#!?rpc_port=1234, change the default RPC port.
 // For security reasons, this requires toggling a flag. Detect this and tell the
 // user what to do in this case.
-function maybeChangeRpcPortFromFragment() {
-  const route = Router.parseUrl(window.location.href);
+function maybeChangeRpcPortFromFragment(app: AppImpl, router: Router) {
+  const route = router.parseUrl(window.location.href);
   if (route.args.rpc_port !== undefined) {
     if (!CSP_WS_PERMISSIVE_PORT.get()) {
-      showModal({
+      showModal(app, {
         title: 'Using a different port requires a flag change',
         content: m(
           'div',
@@ -313,14 +318,18 @@ function maybeChangeRpcPortFromFragment() {
           {
             text: 'Take me to the flags page',
             primary: true,
-            action: () => Router.navigate('#!/flags/cspAllowAnyWebsocketPort'),
+            action: () => router.navigate('#!/flags/cspAllowAnyWebsocketPort'),
           },
         ],
       });
     } else {
-      HttpRpcEngine.rpcPort = route.args.rpc_port;
+      app.httpRpc.rpcPort = route.args.rpc_port;
     }
   }
+}
+
+function main() {
+  return runApp();
 }
 
 // TODO(primiano): this injection is to break a cirular dependency. See
@@ -334,4 +343,7 @@ configureExtensions({
   addQueryResultsTab,
 });
 
-main();
+const runMain = window.sessionStorage.getItem('perfetto.runMain') !== 'false';
+if (runMain) {
+  main();
+}
