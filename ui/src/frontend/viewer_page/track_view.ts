@@ -31,7 +31,6 @@ import {Icons} from '../../base/semantic_icons';
 import {TimeScale} from '../../base/time_scale';
 import {RequiredField} from '../../base/utils';
 import {PerfStats, runningStatStr} from '../../core/perf_stats';
-import {raf} from '../../core/raf_scheduler';
 import {TraceImpl} from '../../core/trace_impl';
 import {TrackWithFSM} from '../../core/track_manager';
 import {TrackRenderer, Track} from '../../public/track';
@@ -141,8 +140,9 @@ export class TrackView {
       scrollIntoView = true;
     }
 
+    const trace = this.trace;
     function showTrackMoveErrorModal(msg: string) {
-      showModal({
+      showModal(trace, {
         title: 'Error',
         content: msg,
         buttons: [{text: 'OK'}],
@@ -179,17 +179,17 @@ export class TrackView {
             ...pos,
             timescale,
           });
-          raf.scheduleCanvasRedraw();
+          this.trace.raf.scheduleCanvasRedraw();
           attrs.onTrackMouseOver();
         },
         onTrackContentMouseOut: () => {
           renderer?.track.onMouseOut?.();
-          raf.scheduleCanvasRedraw();
+          this.trace.raf.scheduleCanvasRedraw();
           attrs.onTrackMouseOut();
         },
         onTrackContentClick: (pos, bounds) => {
           const timescale = this.getTimescaleForBounds(bounds);
-          raf.scheduleCanvasRedraw();
+          this.trace.raf.scheduleCanvasRedraw();
           return (
             renderer?.track.onMouseClick?.({
               ...pos,
@@ -560,7 +560,7 @@ const TrackPopupMenu = {
       m(
         MenuItem,
         {label: 'Track details'},
-        renderTrackDetailsMenu(attrs.node, attrs.descriptor),
+        renderTrackDetailsMenu(attrs.trace, attrs.node, attrs.descriptor),
       ),
       m(MenuDivider),
       m(
@@ -617,7 +617,7 @@ function copyToWorkspace(trace: Trace, node: TrackNode, ws?: Workspace) {
   return ws;
 }
 
-function renderTrackDetailsMenu(node: TrackNode, descriptor?: Track) {
+function renderTrackDetailsMenu(trace: Trace, node: TrackNode, descriptor?: Track) {
   const fullPath = node.fullPath.join(' \u2023 ');
   const query = descriptor?.renderer.getDataset?.()?.query();
 
@@ -656,7 +656,7 @@ function renderTrackDetailsMenu(node: TrackNode, descriptor?: Track) {
             Anchor,
             {
               onclick: () => {
-                showModal({
+                showModal(trace, {
                   title: 'Query for track',
                   content: m('pre', query),
                   buttons: [

@@ -25,7 +25,7 @@ export default class implements PerfettoPlugin {
     // Flags page
     app.pages.registerPage({
       route: '/flags',
-      render: (subpage) => m(FlagsPage, {subpage}),
+      render: (subpage) => m(FlagsPage, {app, subpage}),
     });
     app.sidebar.addMenuItem({
       section: 'support',

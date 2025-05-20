@@ -91,6 +91,7 @@ async function cacheKeys(): Promise<readonly Request[]> {
 export async function cacheTrace(
   traceSource: TraceSource,
   traceUuid: string,
+  integrationContext?: IntegrationContext,
 ): Promise<boolean> {
   let trace;
   let title = '';
@@ -130,7 +131,7 @@ export async function cacheTrace(
     ],
   ]);
   await deleteStaleEntries();
-  const cachePrefix = IntegrationContext.instance?.cachePrefix ?? '';
+  const cachePrefix = integrationContext?.cachePrefix ?? '';
   await cachePut(
     `${cachePrefix}/_${TRACE_CACHE_NAME}/${traceUuid}`,
     new Response(trace, {headers}),
@@ -140,9 +141,10 @@ export async function cacheTrace(
 
 export async function tryGetTrace(
   traceUuid: string,
+  integrationContext?: IntegrationContext,
 ): Promise<TraceArrayBufferSource | undefined> {
   await deleteStaleEntries();
-  const cachePrefix = IntegrationContext.instance?.cachePrefix ?? '';
+  const cachePrefix = integrationContext?.cachePrefix ?? '';
   const response = await cacheMatch(`${cachePrefix}/_${TRACE_CACHE_NAME}/${traceUuid}`);
 
   if (!response) return undefined;

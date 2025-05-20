@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {raf} from '../core/raf_scheduler';
+import {RafScheduler} from '../core/raf_scheduler';
 
 export class Animation {
   private startMs = 0;
   private endMs = 0;
   private boundOnAnimationFrame = this.onAnimationFrame.bind(this);
 
-  constructor(private onAnimationStep: (timeSinceStartMs: number) => void) {}
+  constructor(private readonly raf: RafScheduler, private onAnimationStep: (timeSinceStartMs: number) => void) {}
 
   start(durationMs: number) {
     const nowMs = performance.now();
@@ -31,12 +31,12 @@ export class Animation {
     }
     this.startMs = nowMs;
     this.endMs = nowMs + durationMs;
-    raf.startAnimation(this.boundOnAnimationFrame);
+    this.raf.startAnimation(this.boundOnAnimationFrame);
   }
 
   stop() {
     this.endMs = 0;
-    raf.stopAnimation(this.boundOnAnimationFrame);
+    this.raf.stopAnimation(this.boundOnAnimationFrame);
   }
 
   get startTimeMs(): number {
@@ -45,7 +45,7 @@ export class Animation {
 
   private onAnimationFrame(nowMs: number) {
     if (nowMs >= this.endMs) {
-      raf.stopAnimation(this.boundOnAnimationFrame);
+      this.raf.stopAnimation(this.boundOnAnimationFrame);
       return;
     }
     this.onAnimationStep(Math.max(Math.round(nowMs - this.startMs), 0));

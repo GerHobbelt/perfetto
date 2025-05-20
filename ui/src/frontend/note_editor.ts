@@ -57,7 +57,7 @@ export class NoteEditor implements m.ClassComponent<NodeDetailsPanelAttrs> {
         m(
           '.notes-editor-panel-heading',
           `Annotation at `,
-          m(Timestamp, {ts: startTime}),
+          m(Timestamp, {trace, ts: startTime}),
         ),
         m('input[type=text]', {
           oncreate: (v: m.VnodeDOM) => {

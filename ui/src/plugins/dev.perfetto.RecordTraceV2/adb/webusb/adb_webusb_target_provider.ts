@@ -25,6 +25,7 @@ import {errResult} from '../../../../base/result';
 import {RecordingTargetProvider} from '../../interfaces/recording_target_provider';
 import {AdbWebusbTarget} from './adb_webusb_target';
 import {EvtSource} from '../../../../base/events';
+import {App} from '../../../../public/app';
 
 export class AdbWebusbTargetProvider implements RecordingTargetProvider {
   readonly id = 'adb_webusb';
@@ -40,7 +41,7 @@ export class AdbWebusbTargetProvider implements RecordingTargetProvider {
   private targets = new Map<string, AdbWebusbTarget>();
   readonly onTargetsChanged = new EvtSource<void>();
 
-  constructor() {
+  constructor(private readonly app: App) {
     if (!exists(navigator.usb)) return;
     navigator.usb.addEventListener('disconnect', () => this.refreshTargets());
     navigator.usb.addEventListener('connect', () => this.refreshTargets());
@@ -73,7 +74,7 @@ export class AdbWebusbTargetProvider implements RecordingTargetProvider {
 
     // If the user re-pairs the same device, remove it from the list and keep
     // the new one.
-    const newTarget = new AdbWebusbTarget(usbiface, this.adbKeyMgr);
+    const newTarget = new AdbWebusbTarget(this.app, usbiface, this.adbKeyMgr);
     this.targets.set(key, newTarget);
     this.onTargetsChanged.notify();
     return newTarget;
@@ -101,7 +102,7 @@ export class AdbWebusbTargetProvider implements RecordingTargetProvider {
     }
     for (const [key, usbiface] of usbDevices.entries()) {
       if (this.targets.has(key)) continue; // We already have this target.
-      const newTarget = new AdbWebusbTarget(usbiface, this.adbKeyMgr);
+      const newTarget = new AdbWebusbTarget(this.app, usbiface, this.adbKeyMgr);
       this.targets.set(key, newTarget);
       triggerOnTrgetsChanged = true;
     }

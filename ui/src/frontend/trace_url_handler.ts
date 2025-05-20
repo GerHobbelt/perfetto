@@ -17,37 +17,36 @@ import {tryGetTrace} from '../core/cache_manager';
 import {showModal} from '../widgets/modal';
 import {loadPermalink} from './permalink';
 import {loadAndroidBugToolInfo} from './android_bug_tool';
-import {Route, Router} from '../core/router';
-import {taskTracker} from './task_tracker';
+import {Route} from '../core/router';
 import {AppImpl} from '../core/app_impl';
 
-function getCurrentTraceUrl(): undefined | string {
-  const source = AppImpl.instance.trace?.traceInfo.source;
+function getCurrentTraceUrl(app: AppImpl): undefined | string {
+  const source = app.trace?.traceInfo.source;
   if (source && source.type === 'URL') {
     return source.url;
   }
   return undefined;
 }
 
-export function maybeOpenTraceFromRoute(route: Route) {
+export function maybeOpenTraceFromRoute(app: AppImpl, route: Route) {
   if (route.args.s) {
     // /?s=xxxx for permalinks.
-    loadPermalink(route.args.s);
+    loadPermalink(app, route.args.s);
     return;
   }
 
   const url = route.args.url;
-  if (url && url !== getCurrentTraceUrl()) {
+  if (url && url !== getCurrentTraceUrl(app)) {
     // /?url=https://commondatastorage.googleapis.com/bucket/trace
     // This really works only for GCS because the Content Security Policy
     // forbids any other url.
-    loadTraceFromUrl(url);
+    loadTraceFromUrl(app, url);
     return;
   }
 
   if (route.args.openFromAndroidBugTool) {
     // Handles interaction with the Android Bug Tool extension. See b/163421158.
-    openTraceFromAndroidBugTool();
+    openTraceFromAndroidBugTool(app);
     return;
   }
 
@@ -55,13 +54,13 @@ export function maybeOpenTraceFromRoute(route: Route) {
     // Handles backwards compatibility for old URLs (linked from various docs),
     // generated before we switched URL scheme. e.g., 'record?p=power' vs
     // 'record/power'. See b/191255021#comment2.
-    Router.navigate(`#!/record/${route.args.p}`);
+    app.router.navigate(`#!/record/${route.args.p}`);
     return;
   }
 
   if (route.args.local_cache_key) {
     // Handles the case of loading traces from the cache storage.
-    maybeOpenCachedTrace(route.args.local_cache_key);
+    maybeOpenCachedTrace(app, route.args.local_cache_key);
     return;
   }
 }
@@ -97,8 +96,8 @@ export function maybeOpenTraceFromRoute(route: Route) {
  * 8. landing page <- URL with local_cache_key:
  *  - Same as case 5: re-append the local_cache_key.
  */
-async function maybeOpenCachedTrace(traceUuid: string) {
-  const curTrace = AppImpl.instance.trace?.traceInfo;
+async function maybeOpenCachedTrace(app: AppImpl, traceUuid: string) {
+  const curTrace = app.trace?.traceInfo;
   const curCacheUuid = curTrace?.cached ? curTrace.uuid : '';
 
   if (traceUuid === curCacheUuid) {
@@ -132,10 +131,10 @@ async function maybeOpenCachedTrace(traceUuid: string) {
   const maybeTrace = await tryGetTrace(traceUuid);
 
   const navigateToOldTraceUuid = () =>
-    Router.navigate(`#!/viewer?local_cache_key=${curCacheUuid}`);
+    app.router.navigate(`#!/viewer?local_cache_key=${curCacheUuid}`);
 
   if (!maybeTrace) {
-    showModal({
+    showModal(app, {
       title: 'Could not find the trace in the cache storage',
       content: m(
         'div',
@@ -162,7 +161,7 @@ async function maybeOpenCachedTrace(traceUuid: string) {
   // discarding, reloading or pasting a url with a local_cache_key in an empty
   // instance.
   if (curTrace === undefined) {
-    AppImpl.instance.openTraceFromBuffer(maybeTrace);
+    app.openTraceFromBuffer(maybeTrace);
     return;
   }
 
@@ -171,7 +170,7 @@ async function maybeOpenCachedTrace(traceUuid: string) {
   // lose the UI state by accidentally navigating back too much.
   let hasOpenedNewTrace = false;
 
-  await showModal({
+  await showModal(app, {
     title: 'You are about to load a different trace and reset the UI state',
     content: m(
       'div',
@@ -199,7 +198,7 @@ async function maybeOpenCachedTrace(traceUuid: string) {
         primary: true,
         action: () => {
           hasOpenedNewTrace = true;
-          AppImpl.instance.openTraceFromBuffer(maybeTrace);
+          app.openTraceFromBuffer(maybeTrace);
         },
       },
       {text: 'Cancel'},
@@ -214,7 +213,7 @@ async function maybeOpenCachedTrace(traceUuid: string) {
   }
 }
 
-function loadTraceFromUrl(url: string) {
+function loadTraceFromUrl(app: AppImpl, url: string) {
   const isLocalhostTraceUrl = ['127.0.0.1', 'localhost'].includes(
     new URL(url).hostname,
   );
@@ -227,20 +226,20 @@ function loadTraceFromUrl(url: string) {
     const fileName = url.split('/').pop() ?? 'local_trace.pftrace';
     const request = fetch(url)
       .then((response) => response.blob())
-      .then((b) => AppImpl.instance.openTraceFromFile(new File([b], fileName)))
+      .then((b) => app.openTraceFromFile(new File([b], fileName)))
       .catch((e) => alert(`Could not load local trace ${e}`));
-    taskTracker.trackPromise(request, 'Downloading local trace');
+    app.taskTracker.trackPromise(request, 'Downloading local trace');
   } else {
-    AppImpl.instance.openTraceFromUrl(url);
+    app.openTraceFromUrl(url);
   }
 }
 
-function openTraceFromAndroidBugTool() {
+function openTraceFromAndroidBugTool(app: AppImpl) {
   const msg = 'Loading trace from ABT extension';
-  AppImpl.instance.omnibox.showStatusMessage(msg);
+  app.omnibox.showStatusMessage(app, msg);
   const loadInfo = loadAndroidBugToolInfo();
-  taskTracker.trackPromise(loadInfo, msg);
+  app.taskTracker.trackPromise(loadInfo, msg);
   loadInfo
-    .then((info) => AppImpl.instance.openTraceFromFile(info.file))
+    .then((info) => app.openTraceFromFile(info.file))
     .catch((e) => console.error(e));
 }

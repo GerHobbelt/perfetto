@@ -17,7 +17,6 @@ import {TraceUrlSource} from '../core/trace_source';
 import {createPermalink} from './permalink';
 import {showModal} from '../widgets/modal';
 import {globals} from './globals';
-import {AppImpl} from '../core/app_impl';
 import {Trace} from '../public/trace';
 import {TraceImpl} from '../core/trace_impl';
 import {CopyableLink} from '../widgets/copyable_link';
@@ -46,7 +45,7 @@ export async function shareTrace(trace: TraceImpl) {
       msg.push(m(CopyableLink, {url: traceUrl}));
     }
 
-    showModal({
+    showModal(trace, {
       title: 'Cannot create permalink from external trace',
       content: m('div', msg),
     });
@@ -60,7 +59,7 @@ export async function shareTrace(trace: TraceImpl) {
       `The trace will be accessible by anybody with the permalink.`,
   );
   if (result) {
-    AppImpl.instance.analytics.logEvent('Trace Actions', 'Create permalink');
+    trace.analytics.logEvent('Trace Actions', 'Create permalink');
     return await createPermalink(trace);
   }
 }

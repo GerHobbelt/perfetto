@@ -13,10 +13,13 @@
 // limitations under the License.
 
 import m from 'mithril';
+import {adapt} from '../base/adapter';
 import {defer} from '../base/deferred';
+import {assertExists} from '../base/logging';
 import {Icon} from './icon';
 import {Button, ButtonVariant} from './button';
 import {Intent} from './common';
+import {App} from '../public/app';
 
 // This module deals with modal dialogs. Unlike most components, here we want to
 // render the DOM elements outside of the corresponding vdom tree. For instance
@@ -64,6 +67,8 @@ export interface ModalAttrs {
   // 1. A static set of children, for simple dialogs which content never change.
   // 2. A factory method that returns a m() vnode for dyamic content.
   content?: m.Children | (() => m.Children);
+
+  app: App;
 }
 
 export interface ModalButton {
@@ -132,7 +137,7 @@ export class Modal implements m.ClassComponent<ModalAttrs> {
           variant: ButtonVariant.Filled,
           id: button.id,
           onclick: () => {
-            closeModal(attrs.key);
+            closeModal(attrs.app, attrs.key);
             if (button.action !== undefined) button.action();
           },
           label: button.text,
@@ -157,7 +162,7 @@ export class Modal implements m.ClassComponent<ModalAttrs> {
           m('h2', {id: 'mm-title'}, attrs.title),
           m(
             'button[aria-label=Close Modal]',
-            {onclick: () => closeModal(attrs.key)},
+            {onclick: () => closeModal(attrs.app, attrs.key)},
             m(Icon, {icon: 'close'}),
           ),
         ),
@@ -173,30 +178,31 @@ export class Modal implements m.ClassComponent<ModalAttrs> {
     // on the dialog itself.
     const t = e.target;
     if (t instanceof Element && t.classList.contains('modal-backdrop')) {
-      closeModal(attrs.key);
+      closeModal(attrs.app, attrs.key);
     }
   }
 
   onBackdropKeyupdown(attrs: ModalAttrs, e: KeyboardEvent) {
     e.stopPropagation();
     if (e.key === 'Escape' && e.type !== 'keyup') {
-      closeModal(attrs.key);
+      closeModal(attrs.app, attrs.key);
     }
   }
 }
 
 // Set by showModal().
-let currentModal: ModalAttrs | undefined = undefined;
+const currentModalPerApp = new Map<App, ModalAttrs>();
 let generationCounter = 0;
 
 // This should be called only by app.ts and nothing else.
 // This generates the modal dialog at the root of the DOM, so it can overlay
 // on top of everything else.
-export function maybeRenderFullscreenModalDialog() {
+export function maybeRenderFullscreenModalDialog(app: App) {
   // We use the generation counter as key to distinguish between: (1) two render
   // passes for the same dialog vs (2) rendering a new dialog that has been
   // created invoking showModal() while another modal dialog was already being
   // shown.
+  const currentModal = currentModalPerApp.get(getCoreApp(app));
   if (currentModal === undefined) return [];
   let children: m.Children;
   if (currentModal.content === undefined) {
@@ -210,9 +216,10 @@ export function maybeRenderFullscreenModalDialog() {
 }
 
 // Shows a full-screen modal dialog.
-export async function showModal(userAttrs: ModalAttrs): Promise<void> {
+export async function showModal(app: App, userAttrs: Omit<ModalAttrs, 'app'>): Promise<void> {
   const returnedClosePromise = defer<void>();
   const userOnClose = userAttrs.onClose ?? (() => {});
+  const ctx = getCoreApp(app);
 
   // If the user doesn't specify a key (to match the closeModal), generate a
   // random key to distinguish two showModal({key:undefined}) calls.
@@ -221,19 +228,22 @@ export async function showModal(userAttrs: ModalAttrs): Promise<void> {
     ...userAttrs,
     key,
     onClose: () => {
+      currentModalPerApp.delete(ctx);
       userOnClose();
       returnedClosePromise.resolve();
     },
+    app,
   };
-  currentModal = attrs;
-  redrawModal();
+  currentModalPerApp.set(ctx, attrs);
+  redrawModal(app);
   return returnedClosePromise;
 }
 
 // Technically we don't need to redraw the whole app, but it's the more
 // pragmatic option. This is exposed to keep the plugin code more clear, so it's
 // evident why a redraw is requested.
-export function redrawModal() {
+export function redrawModal(app: App) {
+  const currentModal = currentModalPerApp.get(getCoreApp(app));
   if (currentModal !== undefined) {
     m.redraw();
   }
@@ -244,7 +254,9 @@ export function redrawModal() {
 // matches. This is to avoid accidentally closing another dialog that popped
 // in the meanwhile. If undefined, it closes whatever modal dialog is currently
 // open (if any).
-export function closeModal(key?: string) {
+export function closeModal(app: App, key?: string) {
+  const coreApp = getCoreApp(app);
+  const currentModal = currentModalPerApp.get(coreApp);
   if (
     currentModal === undefined ||
     (key !== undefined && currentModal.key !== key)
@@ -253,10 +265,15 @@ export function closeModal(key?: string) {
     // a different key.
     return;
   }
-  currentModal = undefined;
+  currentModalPerApp.delete(coreApp);
   m.redraw();
 }
 
-export function getCurrentModalKey(): string | undefined {
-  return currentModal?.key;
+export function getCurrentModalKey(app: App): string | undefined {
+  return currentModalPerApp.get(getCoreApp(app))?.key;
+}
+
+function getCoreApp(app: App): App {
+  const result = adapt<App>(app, App);
+  return assertExists(result, 'app is not adaptable to a the core App');
 }

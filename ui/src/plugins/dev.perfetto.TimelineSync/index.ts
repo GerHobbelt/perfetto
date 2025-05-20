@@ -70,7 +70,7 @@ export default class implements PerfettoPlugin {
     ctx.commands.registerCommand({
       id: `dev.perfetto.SplitScreen#enableTimelineSync`,
       name: 'Enable timeline sync with other Perfetto UI tabs',
-      callback: () => this.showTimelineSyncDialog(),
+      callback: () => this.showTimelineSyncDialog(ctx),
     });
     ctx.commands.registerCommand({
       id: `dev.perfetto.SplitScreen#disableTimelineSync`,
@@ -80,7 +80,7 @@ export default class implements PerfettoPlugin {
     ctx.commands.registerCommand({
       id: `dev.perfetto.SplitScreen#toggleTimelineSync`,
       name: 'Toggle timeline sync with other PerfettoUI tabs',
-      callback: () => this.toggleTimelineSync(),
+      callback: () => this.toggleTimelineSync(ctx),
       defaultHotkey: 'Mod+Alt+S',
     });
 
@@ -92,7 +92,7 @@ export default class implements PerfettoPlugin {
           intent: this.active ? Intent.Success : Intent.None,
           onclick: this.active
             ? undefined
-            : () => this.showTimelineSyncDialog(),
+            : () => this.showTimelineSyncDialog(ctx),
         };
       },
       popupContent: () => {
@@ -157,15 +157,15 @@ export default class implements PerfettoPlugin {
     } as SyncMessage);
   }
 
-  private toggleTimelineSync() {
+  private toggleTimelineSync(trace: Trace) {
     if (this._sessionId === 0) {
-      this.showTimelineSyncDialog();
+      this.showTimelineSyncDialog(trace);
     } else {
       this.disableTimelineSync(this._sessionId);
     }
   }
 
-  private showTimelineSyncDialog() {
+  private showTimelineSyncDialog(trace: Trace) {
     let clientsSelect: HTMLSelectElement;
 
     // This nested function is invoked when the modal dialog buton is pressed.
@@ -235,7 +235,7 @@ export default class implements PerfettoPlugin {
       );
     };
 
-    showModal({
+    showModal(trace, {
       title: 'Synchronize timeline across several tabs',
       content: renderModalContents,
       buttons: [
@@ -304,9 +304,10 @@ export default class implements PerfettoPlugin {
   }
 
   private onmessage(msg: MessageEvent) {
-    if (this._ctx === undefined) return; // Trace unloaded
+    const trace = this._ctx;
+    if (trace === undefined) return; // Trace unloaded
     if (!('perfettoSync' in msg.data)) return;
-    this._ctx.raf.scheduleFullRedraw();
+    trace.raf.scheduleFullRedraw();
     const msgData = msg.data as SyncMessage;
     const sync = msgData.perfettoSync;
     switch (sync.cmd) {
@@ -318,7 +319,7 @@ export default class implements PerfettoPlugin {
             lastHeartbeat: Date.now(),
           });
           this.purgeInactiveClients();
-          redrawModal();
+          redrawModal(trace);
         }
         break;
       case 'MSG_SESSION_START':

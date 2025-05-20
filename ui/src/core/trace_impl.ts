@@ -102,17 +102,20 @@ export class TraceContext implements Disposable {
       traceInfo,
       this.appCtx.timestampFormat,
       this.appCtx.durationPrecision,
+      this.appCtx.raf,
     );
 
     this.scrollHelper = new ScrollHelper(
       this.traceInfo,
       this.timeline,
+      this.appCtx.raf,
       this.workspaceMgr.currentWorkspace,
       this.trackMgr,
     );
 
     this.selectionMgr = new SelectionManagerImpl(
       this.engine,
+      this.appCtx.raf,
       this.trackMgr,
       this.noteMgr,
       this.scrollHelper,
@@ -135,6 +138,7 @@ export class TraceContext implements Disposable {
     );
 
     this.searchMgr = new SearchManagerImpl({
+      raf: this.appCtx.raf,
       timeline: this.timeline,
       trackManager: this.trackMgr,
       engine: this.engine,
@@ -307,6 +311,7 @@ export class TraceImpl implements Trace {
       } else if (src.type === 'URL') {
         return await fetchWithProgress(src.url, (progressPercent: number) =>
           this.omnibox.showStatusMessage(
+            this.appImpl,
             `Downloading trace ${progressPercent}%`,
           ),
         );
@@ -445,6 +450,10 @@ export class TraceImpl implements Trace {
 
   navigate(newHash: string): void {
     this.appImpl.navigate(newHash);
+  }
+
+  get currentPage() {
+    return this.appImpl.currentPage;
   }
 
   openTraceFromFile(file: File) {
