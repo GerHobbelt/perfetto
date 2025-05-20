@@ -14,7 +14,7 @@
 
 import m from 'mithril';
 import {assertExists} from '../base/logging';
-import {AppImpl} from '../core/app_impl';
+import {AppImpl, AppImplAttrs} from '../core/app_impl';
 import {HotkeyGlyphs} from '../widgets/hotkey_glyphs';
 import {showModal} from '../widgets/modal';
 import {Spinner} from '../widgets/spinner';
@@ -24,13 +24,12 @@ import {
   NotSupportedError,
 } from '../base/keyboard_layout_map';
 import {KeyMapping} from './viewer_page/wasd_navigation_handler';
-import {raf} from '../core/raf_scheduler';
 
-export function toggleHelp() {
-  AppImpl.instance.analytics.logEvent('User Actions', 'Show help');
-  return showModal({
+export function toggleHelp(app: AppImpl) {
+  app.analytics.logEvent('User Actions', 'Show help');
+  return showModal(app, {
     title: 'Perfetto Help',
-    content: () => m(KeyMappingsHelp),
+    content: () => m(KeyMappingsHelp, {app}),
   });
 }
 
@@ -47,14 +46,14 @@ class EnglishQwertyKeyboardLayoutMap implements KeyboardLayoutMap {
   }
 }
 
-class KeyMappingsHelp implements m.ClassComponent {
+class KeyMappingsHelp implements m.ClassComponent<AppImplAttrs> {
   private keyMap?: KeyboardLayoutMap;
 
-  oninit() {
+  oninit({attrs}: m.Vnode<AppImplAttrs>) {
     nativeKeyboardLayoutMap()
       .then((keyMap: KeyboardLayoutMap) => {
         this.keyMap = keyMap;
-        raf.scheduleFullRedraw();
+        attrs.app.raf.scheduleFullRedraw();
       })
       .catch((e) => {
         if (
@@ -69,7 +68,7 @@ class KeyMappingsHelp implements m.ClassComponent {
           // The alternative would be to show key mappings for all keyboard
           // layouts which is not feasible.
           this.keyMap = new EnglishQwertyKeyboardLayoutMap();
-          raf.scheduleFullRedraw();
+          attrs.app.raf.scheduleFullRedraw();
         } else {
           // Something unexpected happened. Either the browser doesn't conform
           // to the keyboard API spec, or the keyboard API spec has changed!
@@ -78,7 +77,7 @@ class KeyMappingsHelp implements m.ClassComponent {
       });
   }
 
-  view(): m.Children {
+  view({attrs}: m.Vnode<AppImplAttrs>): m.Children {
     return m(
       '.pf-help',
       m('h2', 'Navigation'),
@@ -158,7 +157,7 @@ class KeyMappingsHelp implements m.ClassComponent {
       m('h2', 'Command Hotkeys'),
       m(
         'table',
-        AppImpl.instance.commands.commands
+        attrs.app.commands.commands
           .filter(({defaultHotkey}) => defaultHotkey)
           .sort((a, b) => a.name.localeCompare(b.name))
           .map(({defaultHotkey, name}) => {

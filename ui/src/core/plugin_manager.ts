@@ -93,7 +93,7 @@ export class PluginManagerImpl {
       name,
       description: `Overrides '${desc.id}' plugin.`,
       defaultValue: defaultPlugins.includes(desc.id),
-    });
+    }, true);
     this.registry.register({
       desc,
       enableFlag: flag,
