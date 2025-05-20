@@ -26,6 +26,8 @@ export class PageManagerImpl {
     {page: string; subpage: string}
   >();
 
+  constructor(private readonly router: Router) {}
+
   registerPage(pageHandler: PageHandler): Disposable {
     assertTrue(/^\/\w*$/.exec(pageHandler.route) !== null);
     // The pluginId is injected by the proxy in AppImpl / TraceImpl. If this is
@@ -36,7 +38,7 @@ export class PageManagerImpl {
 
   // Called by index.ts upon the main frame redraw callback.
   renderPageForCurrentRoute(): m.Children {
-    const route = Router.parseFragment(location.hash);
+    const route = this.router.parseFragment(location.hash);
     this.previousPages.set(route.page, {
       page: route.page,
       subpage: route.subpage,

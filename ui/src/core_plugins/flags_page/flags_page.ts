@@ -13,10 +13,10 @@
 // limitations under the License.
 
 import m from 'mithril';
+import {AppImplAttrs} from '../../core/app_impl';
 import {channelChanged, getNextChannel, setChannel} from '../../core/channels';
 import {featureFlags} from '../../core/feature_flags';
 import {Flag, OverrideState} from '../../public/feature_flag';
-import {Router} from '../../core/router';
 
 const RELEASE_PROCESS_URL =
   'https://perfetto.dev/docs/visualization/perfetto-ui-release-process';
@@ -26,7 +26,7 @@ interface FlagOption {
   name: string;
 }
 
-interface SelectWidgetAttrs {
+interface SelectWidgetAttrs extends AppImplAttrs {
   id: string;
   label: string;
   description: m.Children;
@@ -37,8 +37,8 @@ interface SelectWidgetAttrs {
 
 class SelectWidget implements m.ClassComponent<SelectWidgetAttrs> {
   view(vnode: m.Vnode<SelectWidgetAttrs>) {
-    const route = Router.parseUrl(window.location.href);
     const attrs = vnode.attrs;
+    const route = attrs.app.router.parseUrl(window.location.href);
     const cssClass = route.subpage === `/${attrs.id}` ? '.focused' : '';
     return m(
       '.flag-widget' + cssClass,
@@ -62,7 +62,7 @@ class SelectWidget implements m.ClassComponent<SelectWidgetAttrs> {
   }
 }
 
-interface FlagWidgetAttrs {
+interface FlagWidgetAttrs extends AppImplAttrs {
   flag: Flag;
 }
 
@@ -71,6 +71,7 @@ class FlagWidget implements m.ClassComponent<FlagWidgetAttrs> {
     const flag = vnode.attrs.flag;
     const defaultState = flag.defaultValue ? 'Enabled' : 'Disabled';
     return m(SelectWidget, {
+      app: vnode.attrs.app,
       label: flag.name,
       id: flag.id,
       description: flag.description,
@@ -98,12 +99,12 @@ class FlagWidget implements m.ClassComponent<FlagWidgetAttrs> {
   }
 }
 
-export interface FlagsPageAttrs {
+export interface FlagsPageAttrs extends AppImplAttrs {
   readonly subpage?: string;
 }
 
 export class FlagsPage implements m.ClassComponent<FlagsPageAttrs> {
-  view() {
+  view({attrs}: m.Vnode<FlagsPageAttrs>) {
     const needsReload = channelChanged();
     return m(
       '.flags-page',
@@ -114,6 +115,7 @@ export class FlagsPage implements m.ClassComponent<FlagsPageAttrs> {
           m('h2', 'Please reload for your changes to take effect'),
         ],
         m(SelectWidget, {
+          app: attrs.app,
           label: 'Release channel',
           id: 'releaseChannel',
           description: [
@@ -148,7 +150,7 @@ export class FlagsPage implements m.ClassComponent<FlagsPageAttrs> {
         featureFlags
           .allFlags()
           .filter((p) => !p.id.startsWith('plugin_'))
-          .map((flag) => m(FlagWidget, {flag})),
+          .map((flag) => m(FlagWidget, {app: attrs.app, flag})),
 
         m(
           '.flags-page__footer',

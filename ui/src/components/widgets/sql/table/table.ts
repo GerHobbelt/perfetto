@@ -17,6 +17,7 @@ import {MenuDivider, MenuItem, PopupMenu} from '../../../../widgets/menu';
 import {buildSqlQuery} from './query_builder';
 import {Icons} from '../../../../base/semantic_icons';
 import {sqliteString} from '../../../../base/string_utils';
+import {Trace} from '../../../../public/trace';
 import {
   ColumnType,
   Row,
@@ -40,6 +41,7 @@ import {SelectColumnMenu} from './select_column_menu';
 import {renderColumnIcon, renderSortMenuItems} from './table_header';
 
 export interface SqlTableConfig {
+  readonly trace: Trace;
   readonly state: SqlTableState;
   // For additional menu items to add to the column header menus
   readonly addColumnMenuItems?: (
@@ -201,11 +203,13 @@ class ColumnFilter implements m.ClassComponent<ColumnFilterAttrs> {
 }
 
 export class SqlTable implements m.ClassComponent<SqlTableConfig> {
+  private readonly trace: Trace;
   private readonly table: SqlTableDescription;
 
   private state: SqlTableState;
 
   constructor(vnode: m.Vnode<SqlTableConfig>) {
+    this.trace = vnode.attrs.trace;
     this.state = vnode.attrs.state;
     this.table = this.state.config;
   }
@@ -222,6 +226,7 @@ export class SqlTable implements m.ClassComponent<SqlTableConfig> {
     }
 
     return m(SelectColumnMenu, {
+      trace: this.trace,
       columns: this.table.columns.map((column) => ({
         key: columnTitle(column),
         column,

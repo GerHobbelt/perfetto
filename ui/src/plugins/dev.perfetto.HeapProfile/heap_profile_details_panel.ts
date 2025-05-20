@@ -127,7 +127,7 @@ export class HeapProfileFlamegraphDetailsPanel
           ),
           description: [],
           buttons: [
-            m('.time', `Snapshot time: `, m(Timestamp, {ts})),
+            m('.time', `Snapshot time: `, m(Timestamp, {trace: this.trace, ts})),
             (type === ProfileType.NATIVE_HEAP_PROFILE ||
               type === ProfileType.JAVA_HEAP_SAMPLES) &&
               m(Button, {
@@ -157,6 +157,7 @@ export class HeapProfileFlamegraphDetailsPanel
       return undefined;
     }
     return m(Modal, {
+      app: trace,
       title: 'The flamegraph is incomplete',
       vAlign: 'TOP',
       content: m(
@@ -486,14 +487,14 @@ async function downloadPprof(trace: Trace, upid: number, ts: time) {
     `select pid from process where upid = ${upid}`,
   );
   if (!trace.traceInfo.downloadable) {
-    showModal({
+    showModal(trace, {
       title: 'Download not supported',
       content: m('div', 'This trace file does not support downloads'),
     });
     return;
   }
   const blob = await trace.getTraceFile();
-  convertTraceToPprofAndDownload(blob, pid.firstRow({pid: NUM}).pid, ts);
+  convertTraceToPprofAndDownload(trace, blob, pid.firstRow({pid: NUM}).pid, ts);
 }
 
 function getHeapGraphObjectReferencesView(

@@ -12,22 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {raf} from '../core/raf_scheduler';
+import {assertExists} from '../base/logging';
+import {RafScheduler} from 'src/core/raf_scheduler';
 import {AppImpl} from '../core/app_impl';
 
 /**
  * Global accessors for state/dispatch in the frontend.
  */
-class Globals {
+export class Globals {
   // This is normally undefined is injected in via is_internal_user.js.
   // WARNING: do not change/rename/move without considering impact on the
   // internal_user script.
   private _isInternalUser: boolean | undefined = undefined;
 
+  private readonly _apps: AppImpl[] = [];
+
   // WARNING: do not change/rename/move without considering impact on the
   // internal_user script.
   get extraSqlPackages() {
-    return AppImpl.instance.extraSqlPackages;
+    return this._apps[0]?.extraSqlPackages ?? [];
   }
 
   // This variable is set by the is_internal_user.js script if the user is a
@@ -46,7 +49,28 @@ class Globals {
   set isInternalUser(value: boolean) {
     localStorage.setItem('isInternalUser', value ? '1' : '0');
     this._isInternalUser = value;
-    raf.scheduleFullRedraw();
+    this._apps.forEach((app) => app.raf.scheduleFullRedraw());
+  }
+
+  addApp(app: AppImpl): Disposable {
+    this._apps.push(app);
+    const apps = this._apps;
+    return {
+      [Symbol.dispose](): void {
+        const index = apps.indexOf(app);
+        if (index >= 0) {
+          apps.splice(index, 1);
+        }
+      },
+    };
+  }
+
+  get app(): AppImpl {
+    return assertExists(this._apps[0]);
+  }
+
+  get raf(): RafScheduler {
+    return this.app.raf as RafScheduler;
   }
 
   // Used when switching to the legacy TraceViewer UI.
@@ -54,7 +78,7 @@ class Globals {
   // however pending RAFs and workers seem to outlive the |window| and need to
   // be cleaned up explicitly.
   shutdown() {
-    raf.shutdown();
+    this._apps.forEach((app) => (app.raf as RafScheduler).shutdown());
   }
 }
 
