@@ -70,8 +70,8 @@ function createScrollTimelineTableColumns(
   return [
     createPluginSliceIdColumn(trace, trackUri, 'id'),
     new StandardColumn('scroll_update_id'),
-    new TimestampColumn('ts'),
-    new DurationColumn('dur'),
+    new TimestampColumn('ts', trace),
+    new DurationColumn('dur', trace),
     new StandardColumn('name'),
     new StandardColumn('classification'),
   ];
@@ -204,11 +204,11 @@ export class ScrollTimelineDetailsPanel implements TrackEventDetailsPanel {
         }),
         m(TreeNode, {
           left: 'Start time',
-          right: m(Timestamp, {ts: this.sliceData.ts}),
+          right: m(Timestamp, {trace: this.trace, ts: this.sliceData.ts}),
         }),
         m(TreeNode, {
           left: 'Duration',
-          right: m(DurationWidget, {dur: this.sliceData.dur}),
+          right: m(DurationWidget, {trace: this.trace, dur: this.sliceData.dur}),
         }),
         m(TreeNode, {
           left: 'SQL ID',
@@ -239,7 +239,7 @@ export class ScrollTimelineDetailsPanel implements TrackEventDetailsPanel {
         .getPlugin(SqlModulesPlugin)
         .getSqlModules()
         .getModuleForTable('chrome_scroll_update_info')
-        ?.getSqlTableDescription('chrome_scroll_update_info');
+        ?.getSqlTableDescription(this.trace, 'chrome_scroll_update_info');
       child = m(
         Tree,
         m(TreeNode, {
@@ -247,7 +247,7 @@ export class ScrollTimelineDetailsPanel implements TrackEventDetailsPanel {
           right:
             this.scrollData.vsyncInterval === undefined
               ? `${this.scrollData.vsyncInterval}`
-              : m(DurationWidget, {dur: this.scrollData.vsyncInterval}),
+              : m(DurationWidget, {trace: this.trace, dur: this.scrollData.vsyncInterval}),
         }),
         m(TreeNode, {
           left: 'Is presented',

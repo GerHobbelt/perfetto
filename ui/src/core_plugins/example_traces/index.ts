@@ -24,7 +24,7 @@ const EXAMPLE_CHROME_TRACE_URL =
 
 function openTraceUrl(app: App, url: string): void {
   app.analytics.logEvent('Trace Actions', 'Open example trace');
-  AppImpl.instance.openTraceFromUrl(url);
+  (app as AppImpl).openTraceFromUrl(url);
 }
 
 export default class implements PerfettoPlugin {

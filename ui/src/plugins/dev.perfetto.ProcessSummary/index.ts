@@ -190,7 +190,7 @@ export default class implements PerfettoPlugin {
             kind: PROCESS_SUMMARY_TRACK,
           },
           chips,
-          renderer: new ProcessSummaryTrack(ctx.engine, config),
+          renderer: new ProcessSummaryTrack(ctx, config),
           subtitle,
         });
       }
@@ -247,7 +247,7 @@ export default class implements PerfettoPlugin {
       tags: {
         kind: PROCESS_SUMMARY_TRACK,
       },
-      renderer: new ProcessSummaryTrack(ctx.engine, config),
+      renderer: new ProcessSummaryTrack(ctx, config),
     });
   }
 }

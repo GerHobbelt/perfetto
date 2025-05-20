@@ -65,18 +65,18 @@ export default class implements PerfettoPlugin {
     if (this.recordingMgr === undefined) {
       const recMgr = new RecordingManager(app);
       this.recordingMgr = recMgr;
-      recMgr.registerProvider(new AdbWebusbTargetProvider());
+      recMgr.registerProvider(new AdbWebusbTargetProvider(app));
       recMgr.registerProvider(new AdbWebsocketTargetProvider());
       recMgr.registerProvider(new WebDeviceProxyTargetProvider());
 
       const chromeProvider = new ChromeExtensionTargetProvider();
       recMgr.registerProvider(chromeProvider);
-      recMgr.registerProvider(new TracedWebsocketTargetProvider());
+      recMgr.registerProvider(new TracedWebsocketTargetProvider(app));
       recMgr.registerPage(
         targetSelectionPage(recMgr),
         bufferConfigPage(recMgr),
         instructionsPage(recMgr),
-        savedConfigsPage(recMgr),
+        savedConfigsPage(app, recMgr),
 
         chromeRecordSection(() => chromeProvider.getChromeCategories()),
         cpuRecordSection(),

@@ -33,7 +33,7 @@ import {OmniboxMode} from '../core/omnibox_manager';
 import {DisposableStack} from '../base/disposable_stack';
 import {Spinner} from '../widgets/spinner';
 import {TraceImpl} from '../core/trace_impl';
-import {AppImpl} from '../core/app_impl';
+import {AppImpl, AppImplAttrs} from '../core/app_impl';
 import {getTimeSpanOfSelectionOrVisibleWindow} from '../public/utils';
 import {DurationPrecision, TimestampFormat} from '../public/timeline';
 import {Workspace} from '../public/workspace';
@@ -60,28 +60,31 @@ const OMNIBOX_INPUT_REF = 'omnibox';
 
 // This wrapper creates a new instance of UiMainPerTrace for each new trace
 // loaded (including the case of no trace at the beginning).
-export class UiMain implements m.ClassComponent {
-  view() {
-    const currentTraceId = AppImpl.instance.trace?.engine.engineId ?? '';
-    return [m(UiMainPerTrace, {key: currentTraceId})];
+export class UiMain implements m.ClassComponent<AppImplAttrs> {
+  view({attrs}: m.Vnode<AppImplAttrs>) {
+    const app = attrs.app;
+    const currentTraceId = app.trace?.engine.engineId ?? '';
+    return [m(UiMainPerTrace, {app, key: currentTraceId})];
   }
 }
 
 // This components gets destroyed and recreated every time the current trace
 // changes. Note that in the beginning the current trace is undefined.
-export class UiMainPerTrace implements m.ClassComponent {
+export class UiMainPerTrace implements m.ClassComponent<AppImplAttrs> {
   // NOTE: this should NOT need to be an AsyncDisposableStack. If you feel the
   // need of making it async because you want to clean up SQL resources, that
   // will cause bugs (see comments in oncreate()).
   private trash = new DisposableStack();
   private omniboxInputEl?: HTMLInputElement;
   private recentCommands: string[] = [];
+  private app: AppImpl;
   private trace?: TraceImpl;
 
   // This function is invoked once per trace.
-  constructor() {
-    const app = AppImpl.instance;
-    const trace = app.trace;
+  constructor({attrs}: m.CVnode<AppImplAttrs>) {
+    const app = attrs.app;
+    this.app = app;
+    const trace = this.app.trace;
     this.trace = trace;
 
     // Register global commands (commands that are useful even without a trace
@@ -97,12 +100,12 @@ export class UiMainPerTrace implements m.ClassComponent {
       {
         id: 'perfetto.ShowHelp',
         name: 'Show help',
-        callback: () => toggleHelp(),
+        callback: () => toggleHelp(app),
         defaultHotkey: '?',
       },
     ];
     globalCmds.forEach((cmd) => {
-      this.trash.use(app.commands.registerCommand(cmd));
+      this.trash.use(this.app.commands.registerCommand(cmd));
     });
 
     // When the UI loads there is no trace. There is no point registering
@@ -412,7 +415,7 @@ export class UiMainPerTrace implements m.ClassComponent {
         callback: () => {
           const json = localStorage.getItem(QUICKSAVE_LOCALSTORAGE_KEY);
           if (json === null) {
-            showModal({
+            showModal(this.app, {
               title: 'Nothing saved in the quicksave slot',
               buttons: [{text: 'Dismiss'}],
             });
@@ -427,7 +430,7 @@ export class UiMainPerTrace implements m.ClassComponent {
         },
       },
       {
-        id: `${app.pluginId}#RestoreDefaults`,
+        id: `${this.app.pluginId}#RestoreDefaults`,
         name: 'Reset all flags back to default values',
         callback: () => {
           featureFlags.resetAll();
@@ -467,7 +470,7 @@ export class UiMainPerTrace implements m.ClassComponent {
   }
 
   private renderOmnibox(): m.Children {
-    const omnibox = AppImpl.instance.omnibox;
+    const omnibox = this.app.omnibox;
     const omniboxMode = omnibox.mode;
     const statusMessage = omnibox.statusMessage;
     if (statusMessage !== undefined) {
@@ -492,7 +495,7 @@ export class UiMainPerTrace implements m.ClassComponent {
   }
 
   renderPromptOmnibox(): m.Children {
-    const omnibox = AppImpl.instance.omnibox;
+    const omnibox = this.app.omnibox;
     const prompt = assertExists(omnibox.pendingPrompt);
 
     let options: OmniboxOption[] | undefined = undefined;
@@ -512,6 +515,7 @@ export class UiMainPerTrace implements m.ClassComponent {
     }
 
     return m(Omnibox, {
+      app: this.app,
       value: omnibox.text,
       placeholder: prompt.text,
       inputRef: OMNIBOX_INPUT_REF,
@@ -537,7 +541,7 @@ export class UiMainPerTrace implements m.ClassComponent {
 
   renderCommandOmnibox(): m.Children {
     // Fuzzy-filter commands by the filter string.
-    const {commands, omnibox} = AppImpl.instance;
+    const {commands, omnibox} = this.app;
     const filteredCmds = commands.fuzzyFilterCommands(omnibox.text);
 
     // Create an array of commands with attached heuristics from the recent
@@ -570,6 +574,7 @@ export class UiMainPerTrace implements m.ClassComponent {
     });
 
     return m(Omnibox, {
+      app: this.app,
       value: omnibox.text,
       placeholder: 'Filter commands...',
       inputRef: OMNIBOX_INPUT_REF,
@@ -612,13 +617,14 @@ export class UiMainPerTrace implements m.ClassComponent {
   renderQueryOmnibox(): m.Children {
     const ph = 'e.g. select * from sched left join thread using(utid) limit 10';
     return m(Omnibox, {
-      value: AppImpl.instance.omnibox.text,
+      app: this.app,
+      value: this.app.omnibox.text,
       placeholder: ph,
       inputRef: OMNIBOX_INPUT_REF,
       extraClasses: 'query-mode',
 
       onInput: (value) => {
-        AppImpl.instance.omnibox.setText(value);
+        this.app.omnibox.setText(value);
       },
       onSubmit: (query, alt) => {
         const config = {
@@ -630,32 +636,33 @@ export class UiMainPerTrace implements m.ClassComponent {
         addQueryResultsTab(this.trace, config, tag);
       },
       onClose: () => {
-        AppImpl.instance.omnibox.setText('');
+        this.app.omnibox.setText('');
         if (this.omniboxInputEl) {
           this.omniboxInputEl.blur();
         }
-        AppImpl.instance.omnibox.reset();
+        this.app.omnibox.reset();
       },
       onGoBack: () => {
-        AppImpl.instance.omnibox.reset();
+        this.app.omnibox.reset();
       },
     });
   }
 
   renderSearchOmnibox(): m.Children {
     return m(Omnibox, {
-      value: AppImpl.instance.omnibox.text,
+      app: this.app,
+      value: this.app.omnibox.text,
       placeholder: "Search or type '>' for commands or ':' for SQL mode",
       inputRef: OMNIBOX_INPUT_REF,
       onInput: (value, _prev) => {
         if (value === '>') {
-          AppImpl.instance.omnibox.setMode(OmniboxMode.Command);
+          this.app.omnibox.setMode(OmniboxMode.Command);
           return;
         } else if (value === ':') {
-          AppImpl.instance.omnibox.setMode(OmniboxMode.Query);
+          this.app.omnibox.setMode(OmniboxMode.Query);
           return;
         }
-        AppImpl.instance.omnibox.setText(value);
+        this.app.omnibox.setText(value);
         if (this.trace === undefined) return; // No trace loaded.
         if (value.length >= 4) {
           this.trace.search.search(value);
@@ -714,13 +721,13 @@ export class UiMainPerTrace implements m.ClassComponent {
     return m('.stepthrough', children);
   }
 
-  oncreate(vnode: m.VnodeDOM) {
+  oncreate(vnode: m.VnodeDOM<AppImplAttrs>) {
     this.updateOmniboxInputRef(vnode.dom);
     this.maybeFocusOmnibar();
   }
 
   view(): m.Children {
-    const app = AppImpl.instance;
+    const app = this.app;
     const hotkeys: HotkeyConfig[] = [];
     for (const {id, defaultHotkey} of app.commands.commands) {
       if (defaultHotkey) {
@@ -736,26 +743,27 @@ export class UiMainPerTrace implements m.ClassComponent {
       {hotkeys},
       m(
         'main.perfetto',
-        m(Sidebar, {trace: this.trace}),
+        m(Sidebar, {app, trace: this.trace}),
         m(Topbar, {
+          app,
           omnibox: this.renderOmnibox(),
           trace: this.trace,
         }),
         app.pages.renderPageForCurrentRoute(),
-        m(CookieConsent),
-        maybeRenderFullscreenModalDialog(),
+        m(CookieConsent, {app}),
+        maybeRenderFullscreenModalDialog(app),
         showStatusBarFlag.get() && renderStatusBar(app.trace),
-        app.perfDebugging.renderPerfStats(),
+        app.perfDebugging.renderPerfStats(app),
       ),
     );
   }
 
-  onupdate({dom}: m.VnodeDOM) {
+  onupdate({dom}: m.VnodeDOM<AppImplAttrs>) {
     this.updateOmniboxInputRef(dom);
     this.maybeFocusOmnibar();
   }
 
-  onremove(_: m.VnodeDOM) {
+  onremove(_: m.VnodeDOM<AppImplAttrs>) {
     this.omniboxInputEl = undefined;
 
     // NOTE: if this becomes ever an asyncDispose(), then the promise needs to
@@ -780,20 +788,20 @@ export class UiMainPerTrace implements m.ClassComponent {
   }
 
   private maybeFocusOmnibar() {
-    if (AppImpl.instance.omnibox.focusOmniboxNextRender) {
+    if (this.app.omnibox.focusOmniboxNextRender) {
       const omniboxEl = this.omniboxInputEl;
       if (omniboxEl) {
         omniboxEl.focus();
-        if (AppImpl.instance.omnibox.pendingCursorPlacement === undefined) {
+        if (this.app.omnibox.pendingCursorPlacement === undefined) {
           omniboxEl.select();
         } else {
           omniboxEl.setSelectionRange(
-            AppImpl.instance.omnibox.pendingCursorPlacement,
-            AppImpl.instance.omnibox.pendingCursorPlacement,
+            this.app.omnibox.pendingCursorPlacement,
+            this.app.omnibox.pendingCursorPlacement,
           );
         }
       }
-      AppImpl.instance.omnibox.clearFocusFlag();
+      this.app.omnibox.clearFocusFlag();
     }
   }
 
@@ -805,7 +813,7 @@ export class UiMainPerTrace implements m.ClassComponent {
     if (
       !isJsonTrace ||
       window.localStorage.getItem(SHOWN_JSON_WARNING_KEY) === 'true' ||
-      AppImpl.instance.embeddedMode
+      this.app.embeddedMode
     ) {
       // When in embedded mode, the host app will control which trace format
       // it passes to Perfetto, so we don't need to show this warning.
@@ -816,7 +824,7 @@ export class UiMainPerTrace implements m.ClassComponent {
     // the presence of key is going to be checked.
     window.localStorage.setItem(SHOWN_JSON_WARNING_KEY, 'true');
 
-    showModal({
+    showModal(this.app, {
       title: 'Warning',
       content: m(
         'div',

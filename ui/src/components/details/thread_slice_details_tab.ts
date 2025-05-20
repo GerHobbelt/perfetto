@@ -255,8 +255,8 @@ export class ThreadSliceDetailsPanel implements TrackEventDetailsPanel {
   }
 
   private renderRhs(trace: Trace, slice: SliceDetails): m.Children {
-    const precFlows = this.renderPrecedingFlows(slice);
-    const followingFlows = this.renderFollowingFlows(slice);
+    const precFlows = this.renderPrecedingFlows(trace, slice);
+    const followingFlows = this.renderFollowingFlows(trace, slice);
     const args =
       hasArgs(slice.args) &&
       m(
@@ -272,7 +272,7 @@ export class ThreadSliceDetailsPanel implements TrackEventDetailsPanel {
     }
   }
 
-  private renderPrecedingFlows(slice: SliceDetails): m.Children {
+  private renderPrecedingFlows(trace: Trace, slice: SliceDetails): m.Children {
     const flows = this.trace.flows.connectedFlows;
     const inFlows = flows.filter(({end}) => end.sliceId === slice.id);
 
@@ -290,6 +290,7 @@ export class ThreadSliceDetailsPanel implements TrackEventDetailsPanel {
               title: 'Slice',
               render: (flow: Flow) =>
                 m(SliceRef, {
+                  trace,
                   id: asSliceSqlId(flow.begin.sliceId),
                   name:
                     flow.begin.sliceChromeCustomName ?? flow.begin.sliceName,
@@ -299,6 +300,7 @@ export class ThreadSliceDetailsPanel implements TrackEventDetailsPanel {
               title: 'Delay',
               render: (flow: Flow) =>
                 m(DurationWidget, {
+                  trace,
                   dur: flow.end.sliceStartTs - flow.begin.sliceEndTs,
                 }),
             },
@@ -316,7 +318,7 @@ export class ThreadSliceDetailsPanel implements TrackEventDetailsPanel {
     }
   }
 
-  private renderFollowingFlows(slice: SliceDetails): m.Children {
+  private renderFollowingFlows(trace: Trace, slice: SliceDetails): m.Children {
     const flows = this.trace.flows.connectedFlows;
     const outFlows = flows.filter(({begin}) => begin.sliceId === slice.id);
 
@@ -334,6 +336,7 @@ export class ThreadSliceDetailsPanel implements TrackEventDetailsPanel {
               title: 'Slice',
               render: (flow: Flow) =>
                 m(SliceRef, {
+                  trace,
                   id: asSliceSqlId(flow.end.sliceId),
                   name: flow.end.sliceChromeCustomName ?? flow.end.sliceName,
                 }),
@@ -342,6 +345,7 @@ export class ThreadSliceDetailsPanel implements TrackEventDetailsPanel {
               title: 'Delay',
               render: (flow: Flow) =>
                 m(DurationWidget, {
+                  trace,
                   dur: flow.end.sliceStartTs - flow.begin.sliceEndTs,
                 }),
             },

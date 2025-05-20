@@ -29,6 +29,7 @@ import {
 } from './sql_modules';
 import {SqlTableDescription} from '../../components/widgets/sql/table/table_description';
 import {TableColumn} from '../../components/widgets/sql/table/table_column';
+import {Trace} from '../../public/trace';
 
 export class SqlModulesImpl implements SqlModules {
   readonly packages: SqlPackage[];
@@ -125,11 +126,11 @@ export class StdlibPackageImpl implements SqlPackage {
     return undefined;
   }
 
-  getSqlTableDescription(tableName: string): SqlTableDescription | undefined {
+  getSqlTableDescription(trace: Trace, tableName: string): SqlTableDescription | undefined {
     for (const module of this.modules) {
       for (const dataObj of module.dataObjects) {
         if (dataObj.name == tableName) {
-          return module.getSqlTableDescription(tableName);
+          return module.getSqlTableDescription(trace, tableName);
         }
       }
     }
@@ -170,7 +171,7 @@ export class StdlibModuleImpl implements SqlModule {
     return undefined;
   }
 
-  getSqlTableDescription(tableName: string): SqlTableDescription | undefined {
+  getSqlTableDescription(trace: Trace, tableName: string): SqlTableDescription | undefined {
     const sqlTable = this.getTable(tableName);
     if (sqlTable === undefined) {
       return undefined;
@@ -178,7 +179,7 @@ export class StdlibModuleImpl implements SqlModule {
     return {
       imports: [this.includeKey],
       name: sqlTable.name,
-      columns: sqlTable.getTableColumns(),
+      columns: sqlTable.getTableColumns(trace),
     };
   }
 }
@@ -289,9 +290,9 @@ class SqlTableImpl implements SqlTable {
       .filter((tAndC) => tAndC !== undefined) as TableAndColumn[];
   }
 
-  getTableColumns(): TableColumn[] {
+  getTableColumns(trace: Trace): TableColumn[] {
     return this.columns.map((col) =>
-      createTableColumnFromPerfettoSql(col, this.name),
+      createTableColumnFromPerfettoSql(trace, col, this.name),
     );
   }
 }
