@@ -15,10 +15,12 @@
 import {Router} from './router';
 
 describe('Router.parseUrl', () => {
+  const router = new Router();
+
   // Can parse arguments from the search string.
   test('Search parsing', () => {
     const url = 'http://localhost?p=123&s=42&url=a?b?c';
-    const route = Router.parseUrl(url);
+    const route = router.parseUrl(url);
     const args = route.args;
     expect(args.p).toBe('123');
     expect(args.s).toBe('42');
@@ -29,7 +31,7 @@ describe('Router.parseUrl', () => {
   // Or from the fragment string.
   test('Fragment parsing', () => {
     const url = 'http://localhost/#!/foo?p=123&s=42&url=a?b?c';
-    const route = Router.parseUrl(url);
+    const route = router.parseUrl(url);
     const args = route.args;
     expect(args.p).toBe('123');
     expect(args.s).toBe('42');
@@ -41,7 +43,7 @@ describe('Router.parseUrl', () => {
   test('Fragment parsing', () => {
     const url =
       'http://localhost/?p=1&s=2&hideSidebar=true#!/foo?s=3&url=4&hideSidebar=false';
-    const route = Router.parseUrl(url);
+    const route = router.parseUrl(url);
     const args = route.args;
     expect(args.p).toBe('1');
     expect(args.s).toBe('3');
@@ -53,7 +55,7 @@ describe('Router.parseUrl', () => {
   // + is also space
   test('plus is space query', () => {
     const url = 'http://localhost?query=(foo+%2B+bar),';
-    const route = Router.parseUrl(url);
+    const route = router.parseUrl(url);
     const args = route.args;
     expect(args.query).toBe('(foo + bar),');
   });
@@ -61,7 +63,7 @@ describe('Router.parseUrl', () => {
   // + is also space
   test('plus is space hash', () => {
     const url = 'http://localhost#!/foo?query=(foo+%2B+bar),';
-    const route = Router.parseUrl(url);
+    const route = router.parseUrl(url);
     const args = route.args;
     expect(args.query).toBe('(foo + bar),');
   });
@@ -69,14 +71,16 @@ describe('Router.parseUrl', () => {
   test('Nested fragment', () => {
     const url =
       'http://localhost/?p=1&s=2&hideSidebar=true#!/foo?s=3&url=4&hideSidebar=false#myfragment';
-    const route = Router.parseUrl(url);
+    const route = router.parseUrl(url);
     expect(route.fragment).toBe('myfragment');
   });
 });
 
 describe('Router.parseFragment', () => {
+  const router = new Router();
+
   test('empty route broken into empty components', () => {
-    const {page, subpage, args} = Router.parseFragment('');
+    const {page, subpage, args} = router.parseFragment('');
     expect(page).toBe('');
     expect(subpage).toBe('');
     expect(args.mode).toBe(undefined);
@@ -84,36 +88,36 @@ describe('Router.parseFragment', () => {
 
   test('by default args are undefined', () => {
     // This prevents the url from becoming messy.
-    const {args} = Router.parseFragment('');
+    const {args} = router.parseFragment('');
     expect(args).toEqual({});
   });
 
   test('invalid route broken into empty components', () => {
-    const {page, subpage} = Router.parseFragment('/bla');
+    const {page, subpage} = router.parseFragment('/bla');
     expect(page).toBe('');
     expect(subpage).toBe('');
   });
 
   test('simple route has page defined', () => {
-    const {page, subpage} = Router.parseFragment('#!/record');
+    const {page, subpage} = router.parseFragment('#!/record');
     expect(page).toBe('/record');
     expect(subpage).toBe('');
   });
 
   test('simple route has both components defined', () => {
-    const {page, subpage} = Router.parseFragment('#!/record/memory');
+    const {page, subpage} = router.parseFragment('#!/record/memory');
     expect(page).toBe('/record');
     expect(subpage).toBe('/memory');
   });
 
   test('route broken at first slash', () => {
-    const {page, subpage} = Router.parseFragment('#!/record/memory/stuff');
+    const {page, subpage} = router.parseFragment('#!/record/memory/stuff');
     expect(page).toBe('/record');
     expect(subpage).toBe('/memory/stuff');
   });
 
   test('parameters separated from route', () => {
-    const {page, subpage, args} = Router.parseFragment(
+    const {page, subpage, args} = router.parseFragment(
       '#!/record/memory?url=http://localhost:1234/aaaa',
     );
     expect(page).toBe('/record');
@@ -122,22 +126,22 @@ describe('Router.parseFragment', () => {
   });
 
   test('openFromAndroidBugTool can be false', () => {
-    const {args} = Router.parseFragment('#!/?openFromAndroidBugTool=false');
+    const {args} = router.parseFragment('#!/?openFromAndroidBugTool=false');
     expect(args.openFromAndroidBugTool).toEqual(false);
   });
 
   test('openFromAndroidBugTool can be true', () => {
-    const {args} = Router.parseFragment('#!/?openFromAndroidBugTool=true');
+    const {args} = router.parseFragment('#!/?openFromAndroidBugTool=true');
     expect(args.openFromAndroidBugTool).toEqual(true);
   });
 
   test('bad modes are coerced to default', () => {
-    const {args} = Router.parseFragment('#!/?mode=1234');
+    const {args} = router.parseFragment('#!/?mode=1234');
     expect(args.mode).toEqual(undefined);
   });
 
   test('bad hideSidebar is coerced to default', () => {
-    const {args} = Router.parseFragment('#!/?hideSidebar=helloworld!');
+    const {args} = router.parseFragment('#!/?hideSidebar=helloworld!');
     expect(args.hideSidebar).toEqual(undefined);
   });
 });

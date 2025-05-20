@@ -26,6 +26,12 @@ import {SettingsManager} from './settings';
 import {TraceStream} from '../core/trace_stream';
 
 /**
+ * Adapter key for the App interface. Any object that is adaptable to `App` must register
+ * an adapter that returns the root App instance, not some plugin-specific App wrapper.
+ */
+export const App = Symbol('App');
+
+/**
  * The API endpoint to interact programmaticaly with the UI before a trace has
  * been loaded. This is passed to plugins' OnActivate().
  */
@@ -70,6 +76,9 @@ export interface App {
    * Navigate to a new page.
    */
   navigate(newHash: string): void;
+
+  /** The current page path. */
+  readonly currentPage: string;
 
   openTraceFromFile(file: File): Promise<Trace>;
   openTraceFromUrl(url: string): Promise<Trace>;

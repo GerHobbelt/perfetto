@@ -24,7 +24,6 @@ import {VegaLiteSelectionTypes, VegaView} from '../vega_view';
 import {stringifyJsonWithBigints} from '../../../base/json_utils';
 import {TopLevelSpec} from 'vega-lite';
 import {Popup, PopupPosition} from '../../../widgets/popup';
-import {raf} from '../../../core/raf_scheduler';
 import {Button, ButtonBar} from '../../../widgets/button';
 import {AsyncLimiter} from '../../../base/async_limiter';
 import {assertDefined} from '../../../base/logging';
@@ -116,6 +115,7 @@ export class SqlBarChart implements m.ClassComponent<SqlBarChartAttrs> {
 
   view({attrs}: m.Vnode<SqlBarChartAttrs>) {
     const data = attrs.state.getData();
+    const trace = attrs.state.args.trace;
     if (data === undefined) return m(Spinner);
     return m(
       'figure.pf-chart',
@@ -135,7 +135,7 @@ export class SqlBarChart implements m.ClassComponent<SqlBarChartAttrs> {
                 // Show the popup to the bottom of the selected row.
                 y: originY + (i?.bounds?.y2 ?? 0),
               };
-              raf.scheduleFullRedraw();
+              trace.raf.scheduleFullRedraw();
             },
           },
         ],
@@ -146,7 +146,7 @@ export class SqlBarChart implements m.ClassComponent<SqlBarChartAttrs> {
             handler: ({value}) => {
               (this.selection =
                 value.rowId === undefined ? [] : [...value.rowId]),
-                raf.scheduleFullRedraw();
+                 trace.raf.scheduleFullRedraw();
             },
           },
         ],

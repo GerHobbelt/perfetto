@@ -20,7 +20,8 @@
 
 import {getServingRoot} from '../base/http_utils';
 import {reportError} from '../base/logging';
-import {raf} from '../core/raf_scheduler';
+import {IntegrationContext} from '../core/integration_context';
+import {Raf} from '../public/raf';
 
 // We use a dedicated |caches| object to share a global boolean beween the main
 // thread and the SW. SW cannot use local-storage or anything else other than
@@ -52,10 +53,20 @@ class BypassCache {
   }
 }
 
-export class ServiceWorkerController {
-  private readonly servingRoot = getServingRoot();
+export class ServiceWorkerController implements AsyncDisposable {
+  private readonly servingRoot: string;
   private _bypassed = false;
   private _installing = false;
+  private registration?: ServiceWorkerRegistration = undefined;
+
+  constructor(private readonly raf: Raf, integrationContext?: IntegrationContext) {
+    this.servingRoot = getServingRoot(integrationContext?.rootRelativePath);
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.registration?.unregister();
+    this.registration = undefined;
+  }
 
   // Caller should reload().
   async setBypass(bypass: boolean) {
@@ -74,11 +85,11 @@ export class ServiceWorkerController {
       }
       this.install();
     }
-    raf.scheduleFullRedraw();
+    this.raf.scheduleFullRedraw();
   }
 
   onStateChange(sw: ServiceWorker) {
-    raf.scheduleFullRedraw();
+    this.raf.scheduleFullRedraw();
     if (sw.state === 'installing') {
       this._installing = true;
     } else if (sw.state === 'activated') {
@@ -127,6 +138,8 @@ export class ServiceWorkerController {
     // version code).
     const swUri = `/service_worker.js?v=${versionDir}`;
     navigator.serviceWorker.register(swUri).then((registration) => {
+      this.registration = registration;
+
       // At this point there are two options:
       // 1. This is the first time we visit the site (or cache was cleared) and
       //    no SW is installed yet. In this case |installing| will be set.

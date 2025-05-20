@@ -30,22 +30,10 @@ export class IntegrationContext {
   private _allowFileDrop = true;
   private _promptToLoadFromTraceProcessorShell = true;
   private _appState?: SerializedAppState;
+  private _rootRelativePath?: string;
 
-  private static _instance: IntegrationContext | undefined;
-
-  static initialize(reset = false): IntegrationContext {
-    if (!this._instance || reset) {
-      this._instance = new IntegrationContext();
-    }
-    return this._instance;
-  }
-
-  /**
-   * Obtain the instance of the integration context. If there is no instance,
-   * then there is no host application in which Perfetto is integrated.
-   */
-  static get instance(): IntegrationContext | undefined {
-    return this._instance;
+  static create(): IntegrationContext {
+    return new IntegrationContext();
   }
 
   private constructor() {}
@@ -129,4 +117,13 @@ export class IntegrationContext {
   set appState(appState: SerializedAppState | undefined) {
     this._appState = appState;
   }
+
+  get rootRelativePath(): string {
+    return this._rootRelativePath ?? '';
+  }
+
+  set rootRelativePath(rootRelativePath: string) {
+    this._rootRelativePath = rootRelativePath;
+  }
+
 }

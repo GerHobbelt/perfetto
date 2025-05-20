@@ -17,7 +17,6 @@ import {searchSegment} from '../../base/binary_search';
 import {assertTrue, assertUnreachable} from '../../base/logging';
 import {Time, time} from '../../base/time';
 import {uuidv4Sql} from '../../base/uuid';
-import {raf} from '../../core/raf_scheduler';
 import {CacheKey} from './timeline_cache';
 import {
   TrackRenderer,
@@ -440,7 +439,7 @@ export abstract class BaseCounterTrack implements TrackRenderer {
     };
     this.hover = undefined;
 
-    raf.scheduleFullRedraw();
+    this.trace.raf.scheduleFullRedraw();
   }
 
   // A method to render a context menu corresponding to switching the rendering
@@ -677,7 +676,7 @@ export abstract class BaseCounterTrack implements TrackRenderer {
     };
 
     // Full redraw to update the tooltip
-    raf.scheduleFullRedraw();
+    this.trace.raf.scheduleFullRedraw();
   }
 
   onMouseOut() {
@@ -870,7 +869,7 @@ export abstract class BaseCounterTrack implements TrackRenderer {
     this.countersKey = countersKey;
     this.counters = data;
 
-    raf.scheduleCanvasRedraw();
+    this.trace.raf.scheduleCanvasRedraw();
   }
 
   private async createTableAndFetchLimits(
