@@ -16,8 +16,8 @@ import {AppImpl} from '../core/app_impl';
 
 let lastDragTarget: EventTarget | null = null;
 
-export function installFileDropHandler() {
-  window.ondragenter = (evt: DragEvent) => {
+export function installFileDropHandler(app: AppImpl): Disposable {
+  const dragEnterHandler = (evt: DragEvent) => {
     evt.preventDefault();
     evt.stopPropagation();
     lastDragTarget = evt.target;
@@ -25,16 +25,18 @@ export function installFileDropHandler() {
       document.body.classList.add('filedrag');
     }
   };
+  window.addEventListener('dragenter', dragEnterHandler);
 
-  window.ondragleave = (evt: DragEvent) => {
+  const dragLeaveHandler = (evt: DragEvent) => {
     evt.preventDefault();
     evt.stopPropagation();
     if (evt.target === lastDragTarget) {
       document.body.classList.remove('filedrag');
     }
   };
+  window.addEventListener('dragleave', dragLeaveHandler);
 
-  window.ondrop = (evt: DragEvent) => {
+  const dropHandler = (evt: DragEvent) => {
     evt.preventDefault();
     evt.stopPropagation();
     document.body.classList.remove('filedrag');
@@ -42,15 +44,26 @@ export function installFileDropHandler() {
       const file = evt.dataTransfer.files[0];
       // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       if (file) {
-        AppImpl.instance.openTraceFromFile(file);
+        app.openTraceFromFile(file);
       }
     }
     evt.preventDefault();
   };
+  window.addEventListener('drop', dropHandler);
 
-  window.ondragover = (evt: DragEvent) => {
+  const dragOverHandler = (evt: DragEvent) => {
     evt.preventDefault();
     evt.stopPropagation();
+  };
+  window.addEventListener('dragover', dragOverHandler);
+
+  return {
+    [Symbol.dispose](): void {
+      window.removeEventListener('dragover', dragOverHandler);
+      window.removeEventListener('drop', dropHandler);
+      window.removeEventListener('dragleave', dragLeaveHandler);
+      window.removeEventListener('dragenter', dragEnterHandler);
+    },
   };
 }
 

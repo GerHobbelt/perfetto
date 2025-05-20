@@ -13,9 +13,8 @@
 // limitations under the License.
 
 import {defer} from '../base/deferred';
-import {raf} from '../core/raf_scheduler';
+import {RafScheduler} from '../core/raf_scheduler';
 import {AppImpl} from '../core/app_impl';
-import {taskTracker} from './task_tracker';
 
 /**
  * This class is exposed by index.ts as window.waitForPerfettoIdle() and is used
@@ -30,6 +29,8 @@ export class IdleDetector {
   private deadline = performance.now() + TIMEOUT_MS;
   private idleSince?: number;
   private idleHysteresisMs = IDLE_HYSTERESIS_MS;
+
+  constructor(private readonly app: AppImpl) {}
 
   waitForPerfettoIdle(idleHysteresisMs = IDLE_HYSTERESIS_MS): Promise<void> {
     this.idleSince = undefined;
@@ -69,12 +70,12 @@ export class IdleDetector {
   }
 
   private idleIndicators() {
-    const reqsPending = AppImpl.instance.trace?.engine.numRequestsPending ?? 0;
+    const reqsPending = this.app.trace?.engine.numRequestsPending ?? 0;
     return [
-      !AppImpl.instance.isLoadingTrace,
+      !this.app.isLoadingTrace,
       reqsPending === 0,
-      !raf.hasPendingRedraws,
-      !taskTracker.hasPendingTasks(),
+      !(this.app.raf as RafScheduler).hasPendingRedraws,
+      !this.app.taskTracker.hasPendingTasks(),
       !document.getAnimations().some((a) => a.playState === 'running'),
       document.querySelector('.progress.progress-anim') == null,
       document.querySelector('.omnibox.message-mode') == null,
