@@ -19,7 +19,7 @@ import {VERSION} from '../gen/perfetto_version';
 import {HttpRpcEngine} from '../trace_processor/http_rpc_engine';
 import {showModal} from '../widgets/modal';
 import {AppImpl} from '../core/app_impl';
-import {IntegrationContext} from '../core/integration_context';
+import {App} from '../public/app';
 
 const CURRENT_API_VERSION =
   protos.TraceProcessorApiVersion.TRACE_PROCESSOR_CURRENT_API_VERSION;
@@ -149,9 +149,9 @@ Trace processor RPC API: ${tpStatus.apiVersion}
 // trying to load a new trace. We do this ahead of time just to have a
 // consistent UX (i.e. so that the user can tell if the RPC is working without
 // having to open a trace).
-export async function CheckHttpRpcConnection(): Promise<void> {
-  const state = await HttpRpcEngine.checkConnection();
-  AppImpl.instance.httpRpc.httpRpcAvailable = state.connected;
+export async function CheckHttpRpcConnection(app: AppImpl): Promise<void> {
+  const state = await HttpRpcEngine.checkConnection(app.httpRpc.rpcPort);
+  app.httpRpc.httpRpcAvailable = state.connected;
   if (!state.connected) {
     // No RPC = exit immediately to the WASM UI.
     return;
@@ -159,7 +159,7 @@ export async function CheckHttpRpcConnection(): Promise<void> {
   const tpStatus = assertExists(state.status);
 
   function forceWasm() {
-    AppImpl.instance.httpRpc.newEngineMode = 'FORCE_BUILTIN_WASM';
+    app.httpRpc.newEngineMode = 'FORCE_BUILTIN_WASM';
   }
 
   // Check short version:
@@ -168,7 +168,7 @@ export async function CheckHttpRpcConnection(): Promise<void> {
     if (url !== undefined) {
       // If matched UI available show a dialog asking the user to
       // switch.
-      const result = await showDialogVersionMismatch(tpStatus, url);
+      const result = await showDialogVersionMismatch(app, tpStatus, url);
       switch (result) {
         case MismatchedVersionDialog.Dismissed:
         case MismatchedVersionDialog.UseMatchingUi:
@@ -188,7 +188,7 @@ export async function CheckHttpRpcConnection(): Promise<void> {
 
   // Check the RPC version:
   if (tpStatus.apiVersion < CURRENT_API_VERSION) {
-    const result = await showDialogIncompatibleRPC(tpStatus);
+    const result = await showDialogIncompatibleRPC(app, tpStatus);
     switch (result) {
       case IncompatibleRpcDialogResult.Dismissed:
       case IncompatibleRpcDialogResult.UseWasm:
@@ -203,15 +203,15 @@ export async function CheckHttpRpcConnection(): Promise<void> {
   }
 
   // Check if pre-loaded:
-  if (tpStatus.loadedTraceName && IntegrationContext.instance?.promptToLoadFromTraceProcessorShell) {
+  if (tpStatus.loadedTraceName && app.integrationContext?.promptToLoadFromTraceProcessorShell) {
     // If a trace is already loaded in the trace processor (e.g., the user
     // launched trace_processor_shell -D trace_file.pftrace), prompt the user to
     // initialize the UI with the already-loaded trace.
-    const result = await showDialogToUsePreloadedTrace(tpStatus);
+    const result = await showDialogToUsePreloadedTrace(app, tpStatus);
     switch (result) {
       case PreloadedDialogResult.Dismissed:
       case PreloadedDialogResult.UseRpcWithPreloadedTrace:
-        AppImpl.instance.openTraceFromHttpRpc();
+        app.openTraceFromHttpRpc();
         return;
       case PreloadedDialogResult.UseRpc:
         // Resetting state is the default.
@@ -234,11 +234,12 @@ enum MismatchedVersionDialog {
 }
 
 async function showDialogVersionMismatch(
+  app: App,
   tpStatus: protos.StatusResult,
   url: string,
 ): Promise<MismatchedVersionDialog> {
   let result = MismatchedVersionDialog.Dismissed;
-  await showModal({
+  await showModal(app, {
     title: 'Version mismatch',
     content: m('.modal-pre', getVersionMismatchMessage(tpStatus)),
     buttons: [
@@ -273,10 +274,11 @@ enum IncompatibleRpcDialogResult {
 }
 
 async function showDialogIncompatibleRPC(
+  app: App,
   tpStatus: protos.StatusResult,
 ): Promise<IncompatibleRpcDialogResult> {
   let result = IncompatibleRpcDialogResult.Dismissed;
-  await showModal({
+  await showModal(app, {
     title: 'Incompatible RPC version',
     content: m('.modal-pre', getIncompatibleRpcMessage(tpStatus)),
     buttons: [
@@ -306,10 +308,11 @@ enum PreloadedDialogResult {
 }
 
 async function showDialogToUsePreloadedTrace(
+  app: App,
   tpStatus: protos.StatusResult,
 ): Promise<PreloadedDialogResult> {
   let result = PreloadedDialogResult.Dismissed;
-  await showModal({
+  await showModal(app, {
     title: 'Use trace processor native acceleration?',
     content: m('.modal-pre', getPromptMessage(tpStatus)),
     buttons: [

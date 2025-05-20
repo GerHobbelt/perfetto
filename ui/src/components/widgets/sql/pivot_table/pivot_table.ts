@@ -14,6 +14,7 @@
 
 import m from 'mithril';
 import {PivotTableState} from './pivot_table_state';
+import {Trace} from '../../../../public/trace';
 import {Spinner} from '../../../../widgets/spinner';
 import {PivotTreeNode} from './pivot_tree_node';
 import {Button} from '../../../../widgets/button';
@@ -34,6 +35,7 @@ import {
 } from '../../../../widgets/custom_table';
 
 export interface PivotTableAttrs {
+  trace: Trace;
   readonly state: PivotTableState;
   // Additional button to render at the end of each row. Typically used
   // for adding new filters.
@@ -168,6 +170,7 @@ export class PivotTable implements m.ClassComponent<PivotTableAttrs> {
             icon: Icons.Add,
           },
           m(SelectColumnMenu, {
+            trace: attrs.trace,
             columns: state.table.columns.map((column) => ({
               key: tableColumnId(column),
               column,
@@ -259,6 +262,7 @@ export class PivotTable implements m.ClassComponent<PivotTableAttrs> {
             icon: Icons.Add,
           },
           m(SelectColumnMenu, {
+            trace: attrs.trace,
             columns: state.table.columns.map((column) => ({
               key: tableColumnId(column),
               column,

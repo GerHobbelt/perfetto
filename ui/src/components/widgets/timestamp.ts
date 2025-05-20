@@ -14,10 +14,8 @@
 
 import m from 'mithril';
 import {copyToClipboard} from '../../base/clipboard';
-import {assertExists} from '../../base/logging';
 import {Icons} from '../../base/semantic_icons';
 import {time, Time} from '../../base/time';
-import {AppImpl} from '../../core/app_impl';
 import {Anchor} from '../../widgets/anchor';
 import {MenuDivider, MenuItem, PopupMenu} from '../../widgets/menu';
 import {Trace} from '../../public/trace';
@@ -28,6 +26,7 @@ import {TimestampFormat} from '../../public/timeline';
 // import {MenuItem, PopupMenu2} from './menu';
 
 interface TimestampAttrs {
+  trace: Trace;
   // The timestamp to print, this should be the absolute, raw timestamp as
   // found in trace processor.
   ts: time;
@@ -40,12 +39,8 @@ interface TimestampAttrs {
 export class Timestamp implements m.ClassComponent<TimestampAttrs> {
   private readonly trace: Trace;
 
-  constructor() {
-    // TODO(primiano): the Trace object should be injected into the attrs, but
-    // there are too many users of this class and doing so requires a larger
-    // refactoring CL. Either that or we should find a different way to plumb
-    // the hoverCursorTimestamp.
-    this.trace = assertExists(AppImpl.instance.trace);
+  constructor({attrs}: m.Vnode<TimestampAttrs>) {
+    this.trace = attrs.trace;
   }
 
   view({attrs}: m.Vnode<TimestampAttrs>) {

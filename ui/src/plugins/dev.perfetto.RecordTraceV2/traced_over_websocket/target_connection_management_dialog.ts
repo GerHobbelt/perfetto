@@ -30,14 +30,14 @@ export async function showTracedConnectionManagementDialog(
 ): Promise<TracedWebsocketTarget | undefined> {
   const resultPromise = defer<TracedWebsocketTarget | undefined>();
   const key = 'TracedConnectioManagementDialog';
-  showModal({
+  showModal(provider.app, {
     key,
     title: 'Connect to remote tracing service',
     content: () =>
       m(TracedConnectioManagementDialog, {provider, resultPromise}),
   }).then(() => resultPromise.resolve(undefined));
   const targetOrUndefined = await resultPromise;
-  closeModal(key);
+  closeModal(provider.app, key);
   return targetOrUndefined;
 }
 

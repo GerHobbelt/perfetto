@@ -676,8 +676,12 @@ function SegmentedButtonsDemo({attrs}: {attrs: {}}) {
   };
 }
 
-export class WidgetsPage implements m.ClassComponent<{app: App}> {
-  view({attrs}: m.Vnode<{app: App}>) {
+export interface WidgetPageAttrs {
+  app: App;
+}
+
+export class WidgetsPage implements m.ClassComponent<WidgetPageAttrs> {
+  view({attrs}: m.Vnode<WidgetPageAttrs>) {
     return m(
       '.pf-widgets-page',
       m('h1', 'Widgets'),
@@ -1347,7 +1351,7 @@ export class WidgetsPage implements m.ClassComponent<{app: App}> {
           m(Button, {
             label: 'Show Modal',
             onclick: () => {
-              showModal({
+              showModal(attrs.app, {
                 title: 'Attention',
                 content: () => 'This is a modal dialog',
                 buttons: [
@@ -1366,7 +1370,7 @@ export class WidgetsPage implements m.ClassComponent<{app: App}> {
       m(WidgetShowcase, {
         label: 'Advanced Modal',
         description: `A helper for modal dialog.`,
-        renderWidget: () => m(ModalShowcase),
+        renderWidget: () => m(ModalShowcase, attrs),
       }),
       m(WidgetShowcase, {
         label: 'TreeTable',
@@ -1823,7 +1827,7 @@ function QueryDataGrid(vnode: m.Vnode<QueryDataGridAttrs>) {
   };
 }
 
-class ModalShowcase implements m.ClassComponent {
+class ModalShowcase implements m.ClassComponent<WidgetPageAttrs> {
   private static counter = 0;
 
   private static log(txt: string) {
@@ -1834,7 +1838,7 @@ class ModalShowcase implements m.ClassComponent {
     mwlogs.scrollTop = mwlogs.scrollHeight;
   }
 
-  private static showModalDialog(staticContent = false) {
+  private static showModalDialog(app: App, staticContent = false) {
     const id = `N=${++ModalShowcase.counter}`;
     ModalShowcase.log(`Open ${id}`);
     const logOnClose = () => ModalShowcase.log(`Close ${id}`);
@@ -1861,18 +1865,18 @@ class ModalShowcase implements m.ClassComponent {
       }
       content = () => m(CounterComponent);
     }
-    const closePromise = showModal({
+    const closePromise = showModal(app, {
       title: `Modal dialog ${id}`,
       buttons: [
         {text: 'OK', action: () => ModalShowcase.log(`OK ${id}`)},
         {text: 'Cancel', action: () => ModalShowcase.log(`Cancel ${id}`)},
         {
           text: 'Show another now',
-          action: () => ModalShowcase.showModalDialog(),
+          action: () => ModalShowcase.showModalDialog(app),
         },
         {
           text: 'Show another in 2s',
-          action: () => setTimeout(() => ModalShowcase.showModalDialog(), 2000),
+          action: () => setTimeout(() => ModalShowcase.showModalDialog(app), 2000),
         },
       ],
       content,
@@ -1880,7 +1884,7 @@ class ModalShowcase implements m.ClassComponent {
     closePromise.then(logOnClose);
   }
 
-  view() {
+  view({attrs}: m.Vnode<WidgetPageAttrs>) {
     return m(
       'div',
       {
@@ -1898,11 +1902,11 @@ class ModalShowcase implements m.ClassComponent {
       }),
       m('input[type=button]', {
         value: 'Show modal (static)',
-        onclick: () => ModalShowcase.showModalDialog(true),
+        onclick: () => ModalShowcase.showModalDialog(attrs.app, true),
       }),
       m('input[type=button]', {
         value: 'Show modal (dynamic)',
-        onclick: () => ModalShowcase.showModalDialog(false),
+        onclick: () => ModalShowcase.showModalDialog(attrs.app, false),
       }),
     );
   }
