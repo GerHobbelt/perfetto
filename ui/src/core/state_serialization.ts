@@ -205,7 +205,7 @@ export function deserializeAppStatePhase2(
   }
 
   // Restore the selection
-  trace.selection.deserialize(appState.selection[0]);
+  trace.selection.deserialize(trace, appState.selection[0]);
 }
 
 /**

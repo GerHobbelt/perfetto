@@ -23,6 +23,7 @@ import {Engine} from '../../trace_processor/engine';
 import {TrackRenderer} from '../../public/track';
 import {LONG, NUM} from '../../trace_processor/query_result';
 import {uuidv4Sql} from '../../base/uuid';
+import {Trace} from '../../public/trace';
 import {TrackRenderContext} from '../../public/track';
 import {AsyncDisposableStack} from '../../base/disposable_stack';
 import {
@@ -50,12 +51,14 @@ const SUMMARY_HEIGHT = TRACK_HEIGHT - MARGIN_TOP;
 
 export class ProcessSummaryTrack implements TrackRenderer {
   private fetcher = new TimelineFetcher<Data>(this.onBoundsChange.bind(this));
+  private trace: Trace;
   private engine: Engine;
   private config: Config;
   private uuid = uuidv4Sql();
 
-  constructor(engine: Engine, config: Config) {
-    this.engine = engine;
+  constructor(trace: Trace, config: Config) {
+    this.trace = trace;
+    this.engine = trace.engine;
     this.config = config;
   }
 
@@ -125,7 +128,7 @@ export class ProcessSummaryTrack implements TrackRenderer {
     visibleWindow,
     resolution,
   }: TrackRenderContext): Promise<void> {
-    await this.fetcher.requestData(visibleWindow.toTimeSpan(), resolution);
+    await this.fetcher.requestData(this.trace, visibleWindow.toTimeSpan(), resolution);
   }
 
   async onBoundsChange(

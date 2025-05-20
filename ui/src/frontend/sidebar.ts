@@ -20,9 +20,8 @@ import {
   enableMetatracing,
   isMetatracingEnabled,
 } from '../core/metatracing';
-import {Engine, EngineMode} from '../trace_processor/engine';
+import {EngineMode} from '../trace_processor/engine';
 import {featureFlags} from '../core/feature_flags';
-import {raf} from '../core/raf_scheduler';
 import {SCM_REVISION, VERSION} from '../gen/perfetto_version';
 import {showModal} from '../widgets/modal';
 import {Animation} from './animation';
@@ -39,7 +38,7 @@ import {
 } from './trace_converter';
 import {openInOldUIWithSizeCheck} from './legacy_trace_viewer';
 import {SIDEBAR_SECTIONS, SidebarSections} from '../public/sidebar';
-import {AppImpl} from '../core/app_impl';
+import {AppImpl, AppImplAttrs} from '../core/app_impl';
 import {Trace} from '../public/trace';
 import {OptionalTraceImplAttrs, TraceImpl} from '../core/trace_impl';
 import {Command} from '../public/command';
@@ -72,29 +71,29 @@ function shouldShowHiringBanner(): boolean {
 }
 
 async function openCurrentTraceWithOldUI(trace: Trace): Promise<void> {
-  AppImpl.instance.analytics.logEvent(
+  trace.analytics.logEvent(
     'Trace Actions',
     'Open current trace in legacy UI',
   );
   const file = await trace.getTraceFile();
-  await openInOldUIWithSizeCheck(file);
+  await openInOldUIWithSizeCheck(trace, file);
 }
 
-async function convertTraceToSystrace(trace: Trace): Promise<void> {
-  AppImpl.instance.analytics.logEvent('Trace Actions', 'Convert to .systrace');
+async function convertTraceToSystrace(app: AppImpl, trace: Trace): Promise<void> {
+  trace.analytics.logEvent('Trace Actions', 'Convert to .systrace');
   const file = await trace.getTraceFile();
-  await convertTraceToSystraceAndDownload(file);
+  await convertTraceToSystraceAndDownload(app, file);
 }
 
-async function convertTraceToJson(trace: Trace): Promise<void> {
-  AppImpl.instance.analytics.logEvent('Trace Actions', 'Convert to .json');
+async function convertTraceToJson(app: AppImpl, trace: Trace): Promise<void> {
+  trace.analytics.logEvent('Trace Actions', 'Convert to .json');
   const file = await trace.getTraceFile();
-  await convertTraceToJsonAndDownload(file);
+  await convertTraceToJsonAndDownload(app, file);
 }
 
 function downloadTrace(trace: TraceImpl) {
   if (!trace.traceInfo.downloadable) return;
-  AppImpl.instance.analytics.logEvent('Trace Actions', 'Download trace');
+  trace.analytics.logEvent('Trace Actions', 'Download trace');
 
   let urlOrBlob: string | Blob | File = '';
   let fileName = `trace${TRACE_SUFFIX}`;
@@ -115,8 +114,9 @@ function downloadTrace(trace: TraceImpl) {
   downloadFileOrUrlWithFilePicker(fileName, urlOrBlob);
 }
 
-function recordMetatrace(engine: Engine) {
-  AppImpl.instance.analytics.logEvent('Trace Actions', 'Record metatrace');
+function recordMetatrace(trace: TraceImpl) {
+  const engine = trace.engine;
+  trace.analytics.logEvent('Trace Actions', 'Record metatrace');
 
   const highPrecisionTimersAvailable =
     window.crossOriginIsolated || engine.mode === 'HTTP_RPC';
@@ -132,7 +132,7 @@ Do you still want to record a metatrace?
 Note that events under timer precision (1ms) will dropped.
 Alternatively, connect to a trace_processor_shell --httpd instance.
 `;
-    showModal({
+    showModal(trace, {
       title: `Trace processor doesn't have high-precision timers`,
       content: m('.modal-pre', PROMPT),
       buttons: [
@@ -154,12 +154,13 @@ Alternatively, connect to a trace_processor_shell --httpd instance.
   }
 }
 
-async function toggleMetatrace(e: Engine) {
-  return isMetatracingEnabled() ? finaliseMetatrace(e) : recordMetatrace(e);
+async function toggleMetatrace(trace: TraceImpl) {
+  return isMetatracingEnabled() ? finaliseMetatrace(trace) : recordMetatrace(trace);
 }
 
-async function finaliseMetatrace(engine: Engine) {
-  AppImpl.instance.analytics.logEvent('Trace Actions', 'Finalise metatrace');
+async function finaliseMetatrace(trace: TraceImpl) {
+  const engine = trace.engine;
+  trace.analytics.logEvent('Trace Actions', 'Finalise metatrace');
 
   const jsEvents = disableMetatracingAndGetTrace();
 
@@ -171,14 +172,15 @@ async function finaliseMetatrace(engine: Engine) {
   downloadData('metatrace', result.metatrace, jsEvents);
 }
 
-class EngineRPCWidget implements m.ClassComponent<OptionalTraceImplAttrs> {
-  view({attrs}: m.CVnode<OptionalTraceImplAttrs>) {
+class EngineRPCWidget implements m.ClassComponent<AppImplAttrs & OptionalTraceImplAttrs> {
+  view({attrs}: m.CVnode<AppImplAttrs & OptionalTraceImplAttrs>) {
     let cssClass = '';
     let title = 'Number of pending SQL queries';
     let label: string;
     let failed = false;
     let mode: EngineMode | undefined;
 
+    const app = attrs.app;
     const engine = attrs.trace?.engine;
     if (engine !== undefined) {
       mode = engine.mode;
@@ -196,8 +198,8 @@ class EngineRPCWidget implements m.ClassComponent<OptionalTraceImplAttrs> {
     // this will eventually become  consistent once the engine is created.
     if (mode === undefined) {
       if (
-        AppImpl.instance.httpRpc.httpRpcAvailable &&
-        AppImpl.instance.httpRpc.newEngineMode === 'USE_HTTP_RPC_IF_AVAILABLE'
+        app.httpRpc.httpRpcAvailable &&
+        app.httpRpc.newEngineMode === 'USE_HTTP_RPC_IF_AVAILABLE'
       ) {
         mode = 'HTTP_RPC';
       } else {
@@ -224,12 +226,12 @@ class EngineRPCWidget implements m.ClassComponent<OptionalTraceImplAttrs> {
   }
 }
 
-const ServiceWorkerWidget: m.Component = {
-  view() {
+const ServiceWorkerWidget: m.Component<AppImplAttrs> = {
+  view({attrs}: m.Vnode<AppImplAttrs>) {
     let cssClass = '';
     let title = 'Service Worker: ';
     let label = 'N/A';
-    const ctl = AppImpl.instance.serviceWorkerController;
+    const ctl = attrs.app.serviceWorkerController;
     if (!('serviceWorker' in navigator)) {
       label = 'N/A';
       title += 'not supported by the browser (requires HTTPS)';
@@ -255,7 +257,7 @@ const ServiceWorkerWidget: m.Component = {
         ctl.setBypass(false);
         return;
       }
-      showModal({
+      showModal(attrs.app, {
         title: 'Disable service worker?',
         content: m(
           'div',
@@ -300,12 +302,12 @@ const ServiceWorkerWidget: m.Component = {
   },
 };
 
-class SidebarFooter implements m.ClassComponent<OptionalTraceImplAttrs> {
-  view({attrs}: m.CVnode<OptionalTraceImplAttrs>) {
+class SidebarFooter implements m.ClassComponent<AppImplAttrs & OptionalTraceImplAttrs> {
+  view({attrs}: m.CVnode<AppImplAttrs & OptionalTraceImplAttrs>) {
     return m(
       '.sidebar-footer',
       m(EngineRPCWidget, attrs),
-      m(ServiceWorkerWidget),
+      m(ServiceWorkerWidget, attrs),
       m(
         '.version',
         m(
@@ -338,17 +340,21 @@ class HiringBanner implements m.ClassComponent {
   }
 }
 
-export class Sidebar implements m.ClassComponent<OptionalTraceImplAttrs> {
-  private _redrawWhileAnimating = new Animation(() => raf.scheduleFullRedraw());
+export class Sidebar implements m.ClassComponent<AppImplAttrs & OptionalTraceImplAttrs> {
+  private _redrawWhileAnimating: Animation;
   private _asyncJobPending = new Set<string>();
   private _sectionExpanded = new Map<string, boolean>();
+  private app: AppImpl;
 
-  constructor({attrs}: m.CVnode<OptionalTraceImplAttrs>) {
-    registerMenuItems(attrs.trace);
+  constructor({attrs}: m.CVnode<AppImplAttrs & OptionalTraceImplAttrs>) {
+    const raf = attrs.app.raf;
+    this.app = attrs.app;
+    this._redrawWhileAnimating = new Animation(raf, () => raf.scheduleFullRedraw());
+    registerMenuItems(attrs.app, attrs.trace);
   }
 
-  view({attrs}: m.CVnode<OptionalTraceImplAttrs>) {
-    const sidebar = AppImpl.instance.sidebar;
+  view({attrs}: m.CVnode<AppImplAttrs & OptionalTraceImplAttrs>) {
+    const sidebar = attrs.app.sidebar;
     if (!sidebar.enabled) return null;
     return m(
       'nav.pf-sidebar',
@@ -398,7 +404,7 @@ export class Sidebar implements m.ClassComponent<OptionalTraceImplAttrs> {
 
   private renderSection(sectionId: SidebarSections) {
     const section = SIDEBAR_SECTIONS[sectionId];
-    const menuItems = AppImpl.instance.sidebar.menuItems
+    const menuItems = this.app.sidebar.menuItems
       .valuesAsArray()
       .filter((item) => item.section === sectionId)
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
@@ -444,7 +450,7 @@ export class Sidebar implements m.ClassComponent<OptionalTraceImplAttrs> {
     } else if (action !== undefined) {
       onclick = action;
     } else if (commandId !== undefined) {
-      const cmdMgr = AppImpl.instance.commands;
+      const cmdMgr = this.app.commands;
       command = cmdMgr.hasCommand(commandId ?? '')
         ? cmdMgr.getCommand(commandId)
         : undefined;
@@ -508,7 +514,7 @@ export class Sidebar implements m.ClassComponent<OptionalTraceImplAttrs> {
       this._asyncJobPending.add(itemId);
       res.finally(() => {
         this._asyncJobPending.delete(itemId);
-        raf.scheduleFullRedraw();
+        this.app.raf.scheduleFullRedraw();
       });
     };
   }
@@ -522,25 +528,24 @@ export class Sidebar implements m.ClassComponent<OptionalTraceImplAttrs> {
 let globalItemsRegistered = false;
 const traceItemsRegistered = new WeakSet<TraceImpl>();
 
-function registerMenuItems(trace: TraceImpl | undefined) {
+function registerMenuItems(app: AppImpl, trace: TraceImpl | undefined) {
   if (!globalItemsRegistered) {
     globalItemsRegistered = true;
-    registerGlobalSidebarEntries();
+    registerGlobalSidebarEntries(app);
   }
   if (trace !== undefined && !traceItemsRegistered.has(trace)) {
     traceItemsRegistered.add(trace);
-    registerTraceMenuItems(trace);
+    registerTraceMenuItems(app, trace);
   }
 }
 
-function registerGlobalSidebarEntries() {
-  const app = AppImpl.instance;
+function registerGlobalSidebarEntries(app: AppImpl) {
   // TODO(primiano): The Open file / Open with legacy entries are registered by
   // the 'perfetto.CoreCommands' plugins. Make things consistent.
   app.sidebar.addMenuItem({
     section: 'support',
     text: 'Keyboard shortcuts',
-    action: toggleHelp,
+    action: () => toggleHelp(app),
     icon: 'help',
   });
   app.sidebar.addMenuItem({
@@ -558,7 +563,7 @@ function registerGlobalSidebarEntries() {
   });
 }
 
-function registerTraceMenuItems(trace: TraceImpl) {
+function registerTraceMenuItems(app: AppImpl, trace: TraceImpl) {
   const downloadDisabled = trace.traceInfo.downloadable
     ? false
     : 'Cannot download external trace';
@@ -603,7 +608,7 @@ function registerTraceMenuItems(trace: TraceImpl) {
   trace.sidebar.addMenuItem({
     section: 'convert_trace',
     text: 'Convert to .json',
-    action: async () => await convertTraceToJson(trace),
+    action: async () => await convertTraceToJson(app, trace),
     icon: 'file_download',
     disabled: downloadDisabled,
   });
@@ -611,7 +616,7 @@ function registerTraceMenuItems(trace: TraceImpl) {
     trace.sidebar.addMenuItem({
       section: 'convert_trace',
       text: 'Convert to .systrace',
-      action: async () => await convertTraceToSystrace(trace),
+      action: async () => await convertTraceToSystrace(app, trace),
       icon: 'file_download',
       disabled: downloadDisabled,
     });
@@ -620,7 +625,7 @@ function registerTraceMenuItems(trace: TraceImpl) {
     sortOrder: 5,
     text: () =>
       isMetatracingEnabled() ? 'Finalize metatrace' : 'Record metatrace',
-    action: () => toggleMetatrace(trace.engine),
+    action: () => toggleMetatrace(trace),
     icon: () => (isMetatracingEnabled() ? 'download' : 'fiber_smart_record'),
   });
 }

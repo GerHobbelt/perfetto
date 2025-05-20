@@ -20,7 +20,6 @@ import {initCssConstants} from './css_constants';
 import {toggleHelp} from './help_modal';
 import {scrollTo} from '../public/scroll_helper';
 import {AppImpl} from '../core/app_impl';
-import {IntegrationContext} from '../core/integration_context';
 
 const TRUSTED_ORIGINS_KEY = 'trustedOrigins';
 
@@ -104,149 +103,156 @@ function shouldGracefullyIgnoreMessage(messageEvent: MessageEvent) {
 // possible for the source website to inspect whether the message handler is
 // ready, so the message handler always replies to a 'PING' message with 'PONG',
 // which indicates it is ready to receive a trace.
-export function postMessageHandler(messageEvent: MessageEvent) {
-  if (shouldGracefullyIgnoreMessage(messageEvent)) {
-    // This message should not be handled in this handler,
-    // because it will be handled elsewhere.
-    return;
-  }
-
-  if (messageEvent.origin === 'https://tagassistant.google.com') {
-    // The GA debugger, does a window.open() and sends messages to the GA
-    // script. Ignore them.
-    return;
-  }
-
-  if (document.readyState !== 'complete') {
-    console.error('Ignoring message - document not ready yet.');
-    return;
-  }
-
-  const fromOpener = messageEvent.source === window.opener;
-  const fromIframeHost = messageEvent.source === window.parent;
-  // This adds support for the folowing flow:
-  // * A (page that whats to open a trace in perfetto) opens B
-  // * B (does something to get the traceBuffer)
-  // * A is navigated to Perfetto UI
-  // * B sends the traceBuffer to A
-  // * closes itself
-  const fromOpenee = (messageEvent.source as WindowProxy).opener === window;
-
-  if (
-    messageEvent.source === null ||
-    !(fromOpener || fromIframeHost || fromOpenee)
-  ) {
-    // This can happen if an extension tries to postMessage.
-    return;
-  }
-
-  if (!('data' in messageEvent)) {
-    throw new Error('Incoming message has no data property');
-  }
-
-  if (messageEvent.data === 'PING') {
-    // Cross-origin messaging means we can't read |messageEvent.source|, but
-    // it still needs to be of the correct type to be able to invoke the
-    // correct version of postMessage(...).
-    const windowSource = messageEvent.source as Window;
-
-    // Use '*' for the reply because in cases of cross-domain isolation, we
-    // see the messageEvent.origin as 'null'. PONG doen't disclose any
-    // interesting information, so there is no harm sending that to the wrong
-    // origin in the worst case.
-    windowSource.postMessage('PONG', '*');
-    return;
-  }
-
-  if (messageEvent.data === 'SHOW-HELP') {
-    toggleHelp();
-    return;
-  }
-
-  if (messageEvent.data === 'RELOAD-CSS-CONSTANTS') {
-    initCssConstants();
-    return;
-  }
-
-  let postedScrollToRange: PostedScrollToRange;
-  if (isPostedScrollToRange(messageEvent.data)) {
-    postedScrollToRange = messageEvent.data.perfetto;
-    scrollToTimeRange(postedScrollToRange);
-    return;
-  }
-
-  let postedTrace: PostedTrace;
-  let keepApiOpen = false;
-  if (isPostedTraceWrapped(messageEvent.data)) {
-    postedTrace = sanitizePostedTrace(messageEvent.data.perfetto);
-    if (postedTrace.keepApiOpen) {
-      keepApiOpen = true;
+export function postMessageHandler(app: AppImpl) {
+  const result = function(messageEvent: MessageEvent) {
+    if (shouldGracefullyIgnoreMessage(messageEvent)) {
+      // This message should not be handled in this handler,
+      // because it will be handled elsewhere.
+      return;
     }
-  } else if (messageEvent.data instanceof ArrayBuffer) {
-    postedTrace = {title: 'External trace', buffer: messageEvent.data};
-  } else {
-    if (!IntegrationContext.instance?.ignoreUnknownPostMessage) {
-      console.warn(
-        'Unknown postMessage() event received. If you are trying to open a ' +
-        'trace via postMessage(), this is a bug in your code. If not, this ' +
-        'could be due to some Chrome extension.');
-      console.log('origin:', messageEvent.origin, 'data:', messageEvent.data);
+
+    if (messageEvent.origin === 'https://tagassistant.google.com') {
+      // The GA debugger, does a window.open() and sends messages to the GA
+      // script. Ignore them.
+      return;
     }
-    return;
-  }
 
-  if (postedTrace.buffer.byteLength === 0) {
-    throw new Error('Incoming message trace buffer is empty');
-  }
+    if (document.readyState !== 'complete') {
+      console.error('Ignoring message - document not ready yet.');
+      return;
+    }
 
-  if (!keepApiOpen) {
-    /* Removing this event listener to avoid callers posting the trace multiple
-     * times. If the callers add an event listener which upon receiving 'PONG'
-     * posts the trace to ui.perfetto.dev, the callers can receive multiple
-     * 'PONG' messages and accidentally post the trace multiple times. This was
-     * part of the cause of b/182502595.
-     */
-    window.removeEventListener('message', postMessageHandler);
-  }
+    const fromOpener = messageEvent.source === window.opener;
+    const fromIframeHost = messageEvent.source === window.parent;
+    // This adds support for the folowing flow:
+    // * A (page that whats to open a trace in perfetto) opens B
+    // * B (does something to get the traceBuffer)
+    // * A is navigated to Perfetto UI
+    // * B sends the traceBuffer to A
+    // * closes itself
+    const fromOpenee = (messageEvent.source as WindowProxy).opener === window;
 
-  const openTrace = () => {
-    AppImpl.instance.openTraceFromBuffer(postedTrace);
+    if (
+      messageEvent.source === null ||
+      !(fromOpener || fromIframeHost || fromOpenee)
+    ) {
+      // This can happen if an extension tries to postMessage.
+      return;
+    }
+
+    if (!('data' in messageEvent)) {
+      throw new Error('Incoming message has no data property');
+    }
+
+    if (messageEvent.data === 'PING') {
+      // Cross-origin messaging means we can't read |messageEvent.source|, but
+      // it still needs to be of the correct type to be able to invoke the
+      // correct version of postMessage(...).
+      const windowSource = messageEvent.source as Window;
+
+      // Use '*' for the reply because in cases of cross-domain isolation, we
+      // see the messageEvent.origin as 'null'. PONG doen't disclose any
+      // interesting information, so there is no harm sending that to the wrong
+      // origin in the worst case.
+      windowSource.postMessage('PONG', '*');
+      return;
+    }
+
+    if (messageEvent.data === 'SHOW-HELP') {
+      toggleHelp(app);
+      return;
+    }
+
+    if (messageEvent.data === 'RELOAD-CSS-CONSTANTS') {
+      initCssConstants();
+      return;
+    }
+
+    let postedScrollToRange: PostedScrollToRange;
+    if (isPostedScrollToRange(messageEvent.data)) {
+      postedScrollToRange = messageEvent.data.perfetto;
+      scrollToTimeRange(app, postedScrollToRange);
+      return;
+    }
+
+    let postedTrace: PostedTrace;
+    let keepApiOpen = false;
+    if (isPostedTraceWrapped(messageEvent.data)) {
+      postedTrace = sanitizePostedTrace(messageEvent.data.perfetto);
+      if (postedTrace.keepApiOpen) {
+        keepApiOpen = true;
+      }
+    } else if (messageEvent.data instanceof ArrayBuffer) {
+      postedTrace = {title: 'External trace', buffer: messageEvent.data};
+    } else {
+      if (!app.integrationContext?.ignoreUnknownPostMessage) {
+        console.warn(
+          'Unknown postMessage() event received. If you are trying to open a ' +
+          'trace via postMessage(), this is a bug in your code. If not, this ' +
+          'could be due to some Chrome extension.');
+        console.log('origin:', messageEvent.origin, 'data:', messageEvent.data);
+      }
+      return;
+    }
+
+    if (postedTrace.buffer.byteLength === 0) {
+      throw new Error('Incoming message trace buffer is empty');
+    }
+
+    if (!keepApiOpen) {
+      /* Removing this event listener to avoid callers posting the trace multiple
+      * times. If the callers add an event listener which upon receiving 'PONG'
+      * posts the trace to ui.perfetto.dev, the callers can receive multiple
+      * 'PONG' messages and accidentally post the trace multiple times. This was
+      * part of the cause of b/182502595.
+      */
+      window.removeEventListener('message', result);
+    }
+
+    const openTrace = () => {
+      // For external traces, we need to disable other features such as
+      // downloading and sharing a trace.
+      postedTrace.localOnly = true;
+      app.openTraceFromBuffer(postedTrace);
+    };
+
+    const trustAndOpenTrace = () => {
+      saveUserTrustedOrigin(messageEvent.origin);
+      openTrace();
+    };
+
+    // If the origin is trusted open the trace directly.
+    if (isTrustedOrigin(messageEvent.origin)) {
+      openTrace();
+      return;
+    }
+
+    // If not ask the user if they expect this and trust the origin.
+    let originTxt = messageEvent.origin;
+    let originUnknown = false;
+    if (originTxt === 'null') {
+      originTxt = 'An unknown origin';
+      originUnknown = true;
+    }
+    showModal(app, {
+      title: 'Open trace?',
+      content: m(
+        'div',
+        m('div', `${originTxt} is trying to open a trace file.`),
+        m('div', 'Do you trust the origin and want to proceed?'),
+      ),
+      buttons: [
+        {text: 'No', primary: true},
+        {text: 'Yes', primary: false, action: openTrace},
+      ].concat(
+        originUnknown
+          ? []
+          : {text: 'Always trust', primary: false, action: trustAndOpenTrace},
+      ),
+    });
   };
 
-  const trustAndOpenTrace = () => {
-    saveUserTrustedOrigin(messageEvent.origin);
-    openTrace();
-  };
-
-  // If the origin is trusted open the trace directly.
-  if (isTrustedOrigin(messageEvent.origin)) {
-    openTrace();
-    return;
-  }
-
-  // If not ask the user if they expect this and trust the origin.
-  let originTxt = messageEvent.origin;
-  let originUnknown = false;
-  if (originTxt === 'null') {
-    originTxt = 'An unknown origin';
-    originUnknown = true;
-  }
-  showModal({
-    title: 'Open trace?',
-    content: m(
-      'div',
-      m('div', `${originTxt} is trying to open a trace file.`),
-      m('div', 'Do you trust the origin and want to proceed?'),
-    ),
-    buttons: [
-      {text: 'No', primary: true},
-      {text: 'Yes', primary: false, action: openTrace},
-    ].concat(
-      originUnknown
-        ? []
-        : {text: 'Always trust', primary: false, action: trustAndOpenTrace},
-    ),
-  });
+  return result;
 }
 
 function sanitizePostedTrace(postedTrace: PostedTrace): PostedTrace {
@@ -271,10 +277,11 @@ function sanitizeString(str: string): string {
 
 const _maxScrollToRangeAttempts = 20;
 async function scrollToTimeRange(
+  app: AppImpl,
   postedScrollToRange: PostedScrollToRange,
   maxAttempts?: number,
 ) {
-  const ready = AppImpl.instance.trace && !AppImpl.instance.isLoadingTrace;
+  const ready = app.trace && !app.isLoadingTrace;
   if (!ready) {
     if (maxAttempts === undefined) {
       maxAttempts = 0;

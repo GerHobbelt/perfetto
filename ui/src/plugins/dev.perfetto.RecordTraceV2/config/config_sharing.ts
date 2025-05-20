@@ -15,13 +15,14 @@
 import m from 'mithril';
 import {GcsUploader} from '../../../base/gcs_uploader';
 import {assertExists} from '../../../base/logging';
+import {App} from '../../../public/app';
 import {CopyableLink} from '../../../widgets/copyable_link';
 import {showModal} from '../../../widgets/modal';
 import {RecordSessionSchema} from '../serialization_schema';
 
 export const SHARE_SUBPAGE = 'share';
 
-export async function shareRecordConfig(config: RecordSessionSchema) {
+export async function shareRecordConfig(app: App, config: RecordSessionSchema) {
   const msg =
     'This will generate a publicly-readable link to the ' +
     'current config which cannot be deleted. Continue?';
@@ -32,7 +33,7 @@ export async function shareRecordConfig(config: RecordSessionSchema) {
   await uploader.waitForCompletion();
   const url = uploader.uploadedUrl;
   const hash = assertExists(url.split('/').pop());
-  showModal({
+  showModal(app, {
     title: 'Permalink',
     content: m(CopyableLink, {
       url: `${self.location.origin}/#!/record/${SHARE_SUBPAGE}/${hash}`,
