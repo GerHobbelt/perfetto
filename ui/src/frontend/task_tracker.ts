@@ -17,7 +17,7 @@ interface PromiseInfo {
   message: string;
 }
 
-export class TaskTracker {
+export class TaskTracker implements Disposable {
   private promisesSeen: number;
   private promisesRejected: number;
   private promisesFulfilled: number;
@@ -28,6 +28,13 @@ export class TaskTracker {
     this.promisesRejected = 0;
     this.promisesFulfilled = 0;
     this.promiseInfo = new Map();
+  }
+
+  [Symbol.dispose](): void {
+    this.promisesSeen = 0;
+    this.promisesRejected = 0;
+    this.promisesFulfilled = 0;
+    this.promiseInfo.clear();
   }
 
   trackPromise(promise: Promise<unknown>, message: string): void {
@@ -63,5 +70,3 @@ export class TaskTracker {
     }
   }
 }
-
-export const taskTracker = new TaskTracker();

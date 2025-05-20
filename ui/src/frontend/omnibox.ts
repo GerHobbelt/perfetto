@@ -17,10 +17,10 @@ import {classNames} from '../base/classnames';
 import {FuzzySegment} from '../base/fuzzy';
 import {isString} from '../base/object_utils';
 import {exists} from '../base/utils';
-import {raf} from '../core/raf_scheduler';
 import {EmptyState} from '../widgets/empty_state';
 import {KeycapGlyph} from '../widgets/hotkey_glyphs';
 import {Popup} from '../widgets/popup';
+import {AppImplAttrs} from '../core/app_impl';
 
 interface OmniboxOptionRowAttrs {
   // Human readable display name for the option.
@@ -95,7 +95,7 @@ export interface OmniboxOption {
   rightContent?: m.Children;
 }
 
-export interface OmniboxAttrs {
+export interface OmniboxAttrs extends AppImplAttrs {
   // Current value of the omnibox input.
   value: string;
 
@@ -334,7 +334,7 @@ export class Omnibox implements m.ClassComponent<OmniboxAttrs> {
   private onMouseDown = (e: Event) => {
     // We need to schedule a redraw manually as this event handler was added
     // manually to the DOM and doesn't use Mithril's auto-redraw system.
-    raf.scheduleFullRedraw();
+    this.attrs?.app.raf.scheduleFullRedraw();
 
     // Don't close if the click was within ourselves or our popup.
     if (e.target instanceof Node) {

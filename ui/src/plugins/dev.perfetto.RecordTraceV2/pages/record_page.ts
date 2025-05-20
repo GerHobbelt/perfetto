@@ -52,7 +52,7 @@ export class RecordPageV2 implements m.ClassComponent<RecordPageAttrs> {
   constructor({attrs}: m.CVnode<RecordPageAttrs>) {
     this.recMgr = attrs.getRecordingManager();
     if (attrs.subpage && attrs.subpage.startsWith('/' + SHARE_SUBPAGE)) {
-      this.loadShared(attrs.subpage.substring(SHARE_SUBPAGE.length + 2));
+      this.loadShared(attrs.app, attrs.subpage.substring(SHARE_SUBPAGE.length + 2));
     }
   }
 
@@ -73,7 +73,7 @@ export class RecordPageV2 implements m.ClassComponent<RecordPageAttrs> {
         '.record-container',
         m(
           '.record-container-content',
-          this.renderMenu(), //
+          this.renderMenu(attrs.app), //
           this.renderSubPage(), //
         ),
       ),
@@ -114,7 +114,7 @@ export class RecordPageV2 implements m.ClassComponent<RecordPageAttrs> {
     }
   }
 
-  private renderMenu() {
+  private renderMenu(app: App) {
     const pages = Array.from(this.recMgr.pages.values());
     return m(
       '.pf-record-menu',
@@ -125,7 +125,7 @@ export class RecordPageV2 implements m.ClassComponent<RecordPageAttrs> {
         m(Button, {
           icon: 'share',
           title: 'Share current config',
-          onclick: () => shareRecordConfig(this.recMgr.serializeSession()),
+          onclick: () => shareRecordConfig(app, this.recMgr.serializeSession()),
         }),
       ),
       m(
@@ -188,13 +188,13 @@ export class RecordPageV2 implements m.ClassComponent<RecordPageAttrs> {
     );
   }
 
-  private async loadShared(hash: string) {
+  private async loadShared(app: App, hash: string) {
     const url = `https://storage.googleapis.com/${BUCKET_NAME}/${hash}`;
     const fetchData = await fetch(url);
     const json = await fetchData.text();
     const res = this.recMgr.restoreSessionFromJson(json);
     if (!res.ok) {
-      showModal({title: 'Restore error', content: res.error});
+      showModal(app, {title: 'Restore error', content: res.error});
       return;
     }
     this.recMgr.app.navigate('#!/record/cmdline');

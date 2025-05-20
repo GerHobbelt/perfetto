@@ -29,6 +29,7 @@ import {
 } from '../adb_msg';
 import {getAdbWebUsbInterface, AdbUsbInterface} from './adb_webusb_utils';
 import {errResult, okResult, Result} from '../../../../base/result';
+import {App} from '../../../../public/app';
 import {AdbWebusbStream} from './adb_webusb_stream';
 
 const ADB_MSG_SIZE = 6 * 4; // 6 * int32.
@@ -69,6 +70,7 @@ export class AdbWebusbDevice extends AdbDevice {
    * @param adbKeyMgr an instance of the key manager.
    */
   static async connect(
+    app: App,
     usbdev: USBDevice,
     adbKeyMgr: AdbKeyManager,
   ): Promise<Result<AdbWebusbDevice>> {
@@ -121,7 +123,7 @@ export class AdbWebusbDevice extends AdbDevice {
 
       if (msg.cmd === 'CNXN') {
         // Success, the device authenticated us.
-        closeModal(modalKey);
+        closeModal(app, modalKey);
         const maxPayload = msg.arg1;
         const ver = msg.arg0;
         if (ver !== VERSION_WITH_CHECKSUM && ver !== VERSION_NO_CHECKSUM) {
@@ -150,7 +152,7 @@ export class AdbWebusbDevice extends AdbDevice {
       if (authAttempt === 1) {
         // Case 2: present our public key. This will prompt the dialog.
         await this.send(usb, 'AUTH', AuthCmd.PUBKEY, 0, key.getPublicKey());
-        showModal({
+        showModal(app, {
           key: modalKey,
           title: 'ADB Authorization required',
           content: 'Please unlock the device and authorize the ADB connection',

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {IntegrationContext} from '../core/integration_context';
 import {assertTrue} from './logging';
 
 export function fetchWithTimeout(
@@ -72,17 +71,19 @@ export function fetchWithProgress(
  * NOTE: this function can only be called from synchronous contexts. It will
  * fail if called in timer handlers or async continuations (e.g. after an await)
  * Use assetSrc(relPath) which caches it on startup.
+ * @param hostApplicationRelative relative path of the app directory when integrated
+ *   in some host application
  * @returns the directory where the app is served from, e.g. 'v46.0-a2082649b'
  */
-export function getServingRoot() {
+export function getServingRoot(hostApplicationRelative?: string) {
   // Works out the root directory where the content should be served from
   // e.g. `http://origin/v1.2.3/`.
   const script = document.currentScript as HTMLScriptElement;
 
   if (script === null) {
     // Can be null in tests or embedding application.
-    assertTrue(typeof jest !== 'undefined' || IntegrationContext.instance !== undefined);
-    return '';
+    assertTrue(typeof jest !== 'undefined' || hostApplicationRelative !== undefined);
+    return hostApplicationRelative ?? '';
   }
 
   let root = script.src;
