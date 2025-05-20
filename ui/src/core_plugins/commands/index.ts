@@ -22,7 +22,6 @@ import {
   isLegacyTrace,
   openFileWithLegacyTraceViewer,
 } from '../../frontend/legacy_trace_viewer';
-import {AppImpl} from '../../core/app_impl';
 import {addQueryResultsTab} from '../../components/query_table/query_result_tab';
 import {featureFlags} from '../../core/feature_flags';
 
@@ -128,7 +127,7 @@ export default class implements PerfettoPlugin {
     input.classList.add('trace_file');
     input.setAttribute('type', 'file');
     input.style.display = 'none';
-    input.addEventListener('change', onInputElementFileSelectionChanged);
+    input.addEventListener('change', (event) => onInputElementFileSelectionChanged(ctx, event));
     document.body.appendChild(input);
 
     const OPEN_TRACE_COMMAND_ID = 'perfetto.CoreCommands#openTrace';
@@ -339,7 +338,7 @@ function promptForTimestamp(message: string): time | undefined {
   return undefined;
 }
 
-function onInputElementFileSelectionChanged(e: Event) {
+function onInputElementFileSelectionChanged(app: App, e: Event) {
   if (!(e.target instanceof HTMLInputElement)) {
     throw new Error('Not an input element');
   }
@@ -349,22 +348,22 @@ function onInputElementFileSelectionChanged(e: Event) {
   e.target.value = '';
 
   if (e.target.dataset['useCatapultLegacyUi'] === '1') {
-    openWithLegacyUi(file);
+    openWithLegacyUi(app, file);
     return;
   }
 
-  AppImpl.instance.analytics.logEvent('Trace Actions', 'Open trace from file');
-  AppImpl.instance.openTraceFromFile(file);
+  app.analytics.logEvent('Trace Actions', 'Open trace from file');
+  app.openTraceFromFile(file);
 }
 
-async function openWithLegacyUi(file: File) {
+async function openWithLegacyUi(app: App, file: File) {
   // Switch back to the old catapult UI.
-  AppImpl.instance.analytics.logEvent(
+  app.analytics.logEvent(
     'Trace Actions',
     'Open trace in Legacy UI',
   );
   if (await isLegacyTrace(file)) {
-    return await openFileWithLegacyTraceViewer(file);
+    return await openFileWithLegacyTraceViewer(app, file);
   }
-  return await openInOldUIWithSizeCheck(file);
+  return await openInOldUIWithSizeCheck(app, file);
 }

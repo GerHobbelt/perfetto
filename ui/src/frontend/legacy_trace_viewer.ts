@@ -20,6 +20,7 @@ import {showModal} from '../widgets/modal';
 import {utf8Decode} from '../base/string_utils';
 import {convertToJson} from './trace_converter';
 import {assetSrc} from '../base/assets';
+import {App} from '../public/app';
 
 const CTRACE_HEADER = 'TRACE:\n';
 
@@ -93,18 +94,19 @@ export async function isLegacyTrace(file: File): Promise<boolean> {
   return false;
 }
 
-export async function openFileWithLegacyTraceViewer(file: File) {
+export async function openFileWithLegacyTraceViewer(app: App, file: File) {
   const reader = new FileReader();
   reader.onload = () => {
     if (reader.result instanceof ArrayBuffer) {
       return openBufferWithLegacyTraceViewer(
+        app,
         file.name,
         reader.result,
         reader.result.byteLength,
       );
     } else {
       const str = reader.result as string;
-      return openBufferWithLegacyTraceViewer(file.name, str, str.length);
+      return openBufferWithLegacyTraceViewer(app, file.name, str, str.length);
     }
   };
   reader.onerror = (err) => {
@@ -122,6 +124,7 @@ export async function openFileWithLegacyTraceViewer(file: File) {
 }
 
 function openBufferWithLegacyTraceViewer(
+  app: App,
   name: string,
   data: ArrayBuffer | string,
   size: number,
@@ -155,7 +158,7 @@ function openBufferWithLegacyTraceViewer(
   }
 
   // Popup blocker detected.
-  showModal({
+  showModal(app, {
     title: 'Open trace in the legacy Catapult Trace Viewer',
     content: m(
       'div',
@@ -166,16 +169,16 @@ function openBufferWithLegacyTraceViewer(
       {
         text: 'Open legacy UI',
         primary: true,
-        action: () => openBufferWithLegacyTraceViewer(name, data, size),
+        action: () => openBufferWithLegacyTraceViewer(app, name, data, size),
       },
     ],
   });
 }
 
-export async function openInOldUIWithSizeCheck(trace: Blob): Promise<void> {
+export async function openInOldUIWithSizeCheck(app: App, trace: Blob): Promise<void> {
   // Perfetto traces smaller than 50mb can be safely opened in the legacy UI.
   if (trace.size < 1024 * 1024 * 50) {
-    return await convertToJson(trace, openBufferWithLegacyTraceViewer);
+    return await convertToJson(app, trace, openBufferWithLegacyTraceViewer);
   }
 
   // Give the user the option to truncate larger perfetto traces.
@@ -186,7 +189,7 @@ export async function openInOldUIWithSizeCheck(trace: Blob): Promise<void> {
   let nextPromise: Promise<void> | undefined;
   const setNextPromise = (p: Promise<void>) => (nextPromise = p);
 
-  await showModal({
+  await showModal(app, {
     title: 'Legacy UI may fail to open this trace',
     content: m(
       'div',
@@ -212,13 +215,14 @@ export async function openInOldUIWithSizeCheck(trace: Blob): Promise<void> {
       {
         text: 'Open full trace (not recommended)',
         action: () =>
-          setNextPromise(convertToJson(trace, openBufferWithLegacyTraceViewer)),
+          setNextPromise(convertToJson(app, trace, openBufferWithLegacyTraceViewer)),
       },
       {
         text: 'Open beginning of trace',
         action: () =>
           setNextPromise(
             convertToJson(
+              app,
               trace,
               openBufferWithLegacyTraceViewer,
               /* truncate*/ 'start',
@@ -231,6 +235,7 @@ export async function openInOldUIWithSizeCheck(trace: Blob): Promise<void> {
         action: () =>
           setNextPromise(
             convertToJson(
+              app,
               trace,
               openBufferWithLegacyTraceViewer,
               /* truncate*/ 'end',

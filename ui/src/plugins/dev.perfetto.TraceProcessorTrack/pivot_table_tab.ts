@@ -65,6 +65,7 @@ export class PivotTableTab implements AreaSelectionTab {
     return {
       isLoading: state?.getData() === undefined,
       content: m(PivotTable, {
+        trace: this.trace,
         state,
         extraRowButton: (node) =>
           m(Button, {

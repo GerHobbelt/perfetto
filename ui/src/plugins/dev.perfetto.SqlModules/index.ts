@@ -55,7 +55,7 @@ export default class implements PerfettoPlugin {
         if (module === undefined) {
           return;
         }
-        const sqlTable = module.getSqlTableDescription(chosenTable);
+        const sqlTable = module.getSqlTableDescription(trace, chosenTable);
         sqlTable &&
           extensions.addLegacySqlTableTab(trace, {
             table: sqlTable,

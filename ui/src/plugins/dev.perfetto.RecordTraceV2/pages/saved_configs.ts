@@ -17,9 +17,10 @@ import {RecordingManager} from '../recording_manager';
 import {RecordSubpage} from '../config/config_interfaces';
 import {SavedSessionSchema, RecordPluginSchema} from '../serialization_schema';
 import {assertExists} from '../../../base/logging';
+import {App} from '../../../public/app';
 import {shareRecordConfig} from '../config/config_sharing';
 
-export function savedConfigsPage(recMgr: RecordingManager): RecordSubpage {
+export function savedConfigsPage(app: App, recMgr: RecordingManager): RecordSubpage {
   const savedConfigs = new Array<SavedSessionSchema>();
 
   return {
@@ -29,7 +30,7 @@ export function savedConfigsPage(recMgr: RecordingManager): RecordSubpage {
     title: 'Saved configs',
     subtitle: 'Save, restore and export configs',
     render() {
-      return m(SavedConfigsPage, {recMgr, savedConfigs});
+      return m(SavedConfigsPage, {app, recMgr, savedConfigs});
     },
     serialize(state: RecordPluginSchema) {
       state.savedSessions = [...savedConfigs];
@@ -42,16 +43,19 @@ export function savedConfigsPage(recMgr: RecordingManager): RecordSubpage {
 }
 
 type RecMgrAttrs = {
+  app: App;
   recMgr: RecordingManager;
   savedConfigs: Array<SavedSessionSchema>;
 };
 
 class SavedConfigsPage implements m.ClassComponent<RecMgrAttrs> {
   private newConfigName = '';
+  private app: App;
   private recMgr: RecordingManager;
   private savedConfigs: Array<SavedSessionSchema>;
 
   constructor({attrs}: m.CVnode<RecMgrAttrs>) {
+    this.app = attrs.app;
     this.recMgr = attrs.recMgr;
     this.savedConfigs = attrs.savedConfigs;
   }
@@ -129,7 +133,7 @@ class SavedConfigsPage implements m.ClassComponent<RecMgrAttrs> {
         {
           class: 'config-button',
           title: 'Generate a shareable URL for the saved config',
-          onclick: () => shareRecordConfig(item.config),
+          onclick: () => shareRecordConfig(this.app, item.config),
         },
         m('i.pf-material-icons', 'share'),
       ),

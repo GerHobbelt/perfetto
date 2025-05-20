@@ -15,7 +15,6 @@
 import {NUM, Row} from '../../../../trace_processor/query_result';
 import {ColumnOrderClause, SqlColumn, sqlColumnId} from './sql_column';
 import {buildSqlQuery} from './query_builder';
-import {raf} from '../../../../core/raf_scheduler';
 import {SortDirection} from '../../../../base/comparison_utils';
 import {assertTrue} from '../../../../base/logging';
 import {SqlTableDescription} from './table_description';
@@ -315,7 +314,7 @@ export class SqlTableState {
     // avoids a lot of complexity for the callers.
     // 50ms is half of the responsiveness threshold (100ms):
     // https://web.dev/rail/#response-process-events-in-under-50ms
-    setTimeout(() => raf.scheduleFullRedraw(), 50);
+    setTimeout(() => this.trace.raf.scheduleFullRedraw(), 50);
 
     if (!filtersMatch) {
       this.rowCount = await this.loadRowCount();
@@ -327,7 +326,7 @@ export class SqlTableState {
     if (this.request !== request) return;
     this.data = data;
 
-    raf.scheduleFullRedraw();
+    this.trace.raf.scheduleFullRedraw();
   }
 
   private async getNonPaginatedData() {
@@ -342,7 +341,7 @@ export class SqlTableState {
         error: queryRes.error,
       };
 
-      raf.scheduleFullRedraw();
+      this.trace.raf.scheduleFullRedraw();
     });
   }
 

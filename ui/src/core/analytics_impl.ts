@@ -31,8 +31,8 @@ function isValidUrl(s: string) {
   return url.protocol === 'http:' || url.protocol === 'https:';
 }
 
-function getReferrerOverride(): string | undefined {
-  const route = Router.parseUrl(window.location.href);
+function getReferrerOverride(router: Router): string | undefined {
+  const route = router.parseUrl(window.location.href);
   const referrer = route.args.referrer;
   if (referrer) {
     return referrer;
@@ -44,8 +44,8 @@ function getReferrerOverride(): string | undefined {
 // Get the referrer from either:
 // - If present: the referrer argument if present
 // - document.referrer
-function getReferrer(): string {
-  const referrer = getReferrerOverride();
+function getReferrer(router: Router): string {
+  const referrer = getReferrerOverride(router);
   if (referrer) {
     if (isValidUrl(referrer)) {
       return referrer;
@@ -68,6 +68,7 @@ export interface AnalyticsInternal extends Analytics {
 export function initAnalytics(
   testingMode: boolean,
   embeddedMode: boolean,
+  router: Router,
 ): AnalyticsInternal {
   // Only initialize logging on the official site and on localhost (to catch
   // analytics bugs when testing locally).
@@ -80,7 +81,7 @@ export function initAnalytics(
     !testingMode &&
     !embeddedMode
   ) {
-    return new AnalyticsImpl();
+    return new AnalyticsImpl(router);
   }
   return new NullAnalytics();
 }
@@ -103,7 +104,7 @@ class NullAnalytics implements AnalyticsInternal {
 class AnalyticsImpl implements AnalyticsInternal {
   private initialized_ = false;
 
-  constructor() {
+  constructor(private readonly router: Router) {
     // The code below is taken from the official Google Analytics docs [1] and
     // adapted to TypeScript. We have it here rather than as an inline script
     // in index.html (as suggested by GA's docs) because inline scripts don't
@@ -146,7 +147,7 @@ class AnalyticsImpl implements AnalyticsInternal {
       anonymize_ip: true,
       page_location: route,
       // Referrer as a URL including query string override.
-      page_referrer: getReferrer(),
+      page_referrer: getReferrer(this.router),
       send_page_view: false,
       page_title: PAGE_TITLE,
       perfetto_is_internal_user: isInternalUser ? '1' : '0',
@@ -154,7 +155,7 @@ class AnalyticsImpl implements AnalyticsInternal {
       // Release channel (canary, stable, autopush)
       perfetto_channel: getCurrentChannel(),
       // Referrer *if overridden* via the query string else empty string.
-      perfetto_referrer_override: getReferrerOverride() ?? '',
+      perfetto_referrer_override: getReferrerOverride(this.router) ?? '',
     });
 
     gtagGlobals.gtag('event', 'page_view', {

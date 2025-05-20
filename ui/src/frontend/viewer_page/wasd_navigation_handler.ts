@@ -14,6 +14,7 @@
 
 import {DisposableStack} from '../../base/disposable_stack';
 import {currentTargetOffset, elementIsEditable} from '../../base/dom_utils';
+import {RafScheduler} from '../../core/raf_scheduler';
 import {Animation} from '../animation';
 
 // When first starting to pan or zoom, move at least this many units.
@@ -91,28 +92,32 @@ export class KeyboardNavigationHandler implements Disposable {
   private zooming: Zoom = Zoom.None;
   private zoomRatio = 0;
   private targetZoomRatio = 0;
-  private panAnimation = new Animation(this.onPanAnimationStep.bind(this));
-  private zoomAnimation = new Animation(this.onZoomAnimationStep.bind(this));
 
   private element: HTMLElement;
   private onPanned: (movedPx: number) => void;
   private onZoomed: (zoomPositionPx: number, zoomRatio: number) => void;
+  private panAnimation: Animation;
+  private zoomAnimation: Animation;
   private trash: DisposableStack;
 
   constructor({
     element,
+    raf,
     onPanned,
     onZoomed,
   }: {
     element: HTMLElement;
+    raf: RafScheduler;
     onPanned: (movedPx: number) => void;
     onZoomed: (zoomPositionPx: number, zoomRatio: number) => void;
   }) {
     this.element = element;
     this.onPanned = onPanned;
     this.onZoomed = onZoomed;
+    this.panAnimation = new Animation(raf, this.onPanAnimationStep.bind(this));
+    this.zoomAnimation = new Animation(raf, this.onZoomAnimationStep.bind(this));
     this.trash = new DisposableStack();
-  
+
     if (!element.getAttribute('tabindex')) {
       // Make it focusable and also tabbable for keyboard accessibility
       element.setAttribute('tabindex', '0');

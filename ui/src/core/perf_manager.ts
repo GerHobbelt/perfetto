@@ -13,7 +13,8 @@
 // limitations under the License.
 
 import m from 'mithril';
-import {raf} from './raf_scheduler';
+import {AppImpl, AppImplAttrs} from './app_impl';
+import {RafScheduler} from './raf_scheduler';
 import {PerfStats, PerfStatsContainer, runningStatStr} from './perf_stats';
 import {MithrilEvent} from '../base/mithril_utils';
 
@@ -21,13 +22,15 @@ export class PerfManager {
   private _enabled = false;
   readonly containers: PerfStatsContainer[] = [];
 
+  constructor(private readonly raf: RafScheduler) {}
+
   get enabled(): boolean {
     return this._enabled;
   }
 
   set enabled(enabled: boolean) {
     this._enabled = enabled;
-    raf.setPerfStatsEnabled(true);
+    this.raf.setPerfStatsEnabled(true);
     this.containers.forEach((c) => c.setPerfStatsEnabled(enabled));
   }
 
@@ -41,7 +44,7 @@ export class PerfManager {
     };
   }
 
-  renderPerfStats(): m.Children {
+  renderPerfStats(app: AppImpl): m.Children {
     if (!this._enabled) return;
     // The rendering of the perf stats UI is atypical. The main issue is that we
     // want to redraw the mithril component even if there is no full DOM redraw
@@ -53,7 +56,7 @@ export class PerfManager {
       oncreate(vnode: m.VnodeDOM) {
         const animationFrame = (dom: Element) => {
           if (removed) return;
-          m.render(dom, m(PerfStatsUi, {perfMgr}));
+          m.render(dom, m(PerfStatsUi, {app, perfMgr}));
           requestAnimationFrame(() => animationFrame(dom));
         };
         animationFrame(vnode.dom);
@@ -67,7 +70,7 @@ export class PerfManager {
 
 // The mithril component that draws the contents of the perf stats box.
 
-interface PerfStatsUiAttrs {
+interface PerfStatsUiAttrs extends AppImplAttrs {
   perfMgr: PerfManager;
 }
 
@@ -76,13 +79,13 @@ class PerfStatsUi implements m.ClassComponent<PerfStatsUiAttrs> {
     return m(
       '.pf-perf-stats',
       {},
-      m('section', this.renderRafSchedulerStats()),
+      m('section', this.renderRafSchedulerStats(attrs.app)),
       m(
         'button.close-button',
         {
           onclick: () => {
             attrs.perfMgr.enabled = false;
-            raf.scheduleFullRedraw();
+            attrs.app.raf.scheduleFullRedraw();
           },
         },
         m('i.pf-material-icons', 'close'),
@@ -93,7 +96,7 @@ class PerfStatsUi implements m.ClassComponent<PerfStatsUiAttrs> {
     );
   }
 
-  renderRafSchedulerStats() {
+  renderRafSchedulerStats(app: AppImpl) {
     return m(
       'div',
       m('div', [
@@ -102,7 +105,7 @@ class PerfStatsUi implements m.ClassComponent<PerfStatsUiAttrs> {
           {
             onclick: (e: MithrilEvent) => {
               e.redraw = false;
-              raf.scheduleCanvasRedraw();
+              app.raf.scheduleCanvasRedraw();
             },
           },
           'Do Canvas Redraw',
@@ -110,7 +113,7 @@ class PerfStatsUi implements m.ClassComponent<PerfStatsUiAttrs> {
         '   |   ',
         m(
           'button',
-          {onclick: () => raf.scheduleFullRedraw()},
+          {onclick: () => app.raf.scheduleFullRedraw()},
           'Do Full Redraw',
         ),
       ]),
@@ -118,16 +121,16 @@ class PerfStatsUi implements m.ClassComponent<PerfStatsUiAttrs> {
       m(
         'table',
         this.statTableHeader(),
-        this.statTableRow('Actions', raf.perfStats.rafActions),
-        this.statTableRow('Dom', raf.perfStats.rafDom),
-        this.statTableRow('Canvas', raf.perfStats.rafCanvas),
-        this.statTableRow('Total', raf.perfStats.rafTotal),
+        this.statTableRow('Actions', app.raf.perfStats.rafActions),
+        this.statTableRow('Dom', app.raf.perfStats.rafDom),
+        this.statTableRow('Canvas', app.raf.perfStats.rafCanvas),
+        this.statTableRow('Total', app.raf.perfStats.rafTotal),
       ),
       m(
         'div',
         'Dom redraw: ' +
-          `Count: ${raf.perfStats.domRedraw.count} | ` +
-          runningStatStr(raf.perfStats.domRedraw),
+          `Count: ${app.raf.perfStats.domRedraw.count} | ` +
+          runningStatStr(app.raf.perfStats.domRedraw),
       ),
     );
   }

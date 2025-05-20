@@ -15,8 +15,8 @@
 import {assertUnreachable} from '../base/logging';
 import {Time, time, TimeSpan, timezoneOffsetMap} from '../base/time';
 import {HighPrecisionTimeSpan} from '../base/high_precision_time_span';
-import {raf} from './raf_scheduler';
 import {HighPrecisionTime} from '../base/high_precision_time';
+import {Raf} from '../public/raf';
 import {DurationPrecision, Timeline, TimestampFormat} from '../public/timeline';
 import {TraceInfo} from '../public/trace_info';
 import {Setting} from '../public/settings';
@@ -53,7 +53,7 @@ export class TimelineImpl implements Timeline {
 
   set highlightedSliceId(x) {
     this._highlightedSliceId = x;
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
   }
 
   get hoveredNoteTimestamp() {
@@ -62,7 +62,7 @@ export class TimelineImpl implements Timeline {
 
   set hoveredNoteTimestamp(x) {
     this._hoveredNoteTimestamp = x;
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
   }
 
   get hoveredUtid() {
@@ -71,7 +71,7 @@ export class TimelineImpl implements Timeline {
 
   set hoveredUtid(x) {
     this._hoveredUtid = x;
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
   }
 
   get hoveredPid() {
@@ -80,7 +80,7 @@ export class TimelineImpl implements Timeline {
 
   set hoveredPid(x) {
     this._hoveredPid = x;
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
   }
 
   constructor(
@@ -88,6 +88,7 @@ export class TimelineImpl implements Timeline {
     private readonly _timestampFormat: Setting<TimestampFormat>,
     private readonly _durationPrecision: Setting<DurationPrecision>,
     readonly timezoneOverride: Setting<string>,
+    private readonly raf: Raf,
   ) {
     this._visibleWindow = HighPrecisionTimeSpan.fromTime(
       traceInfo.start,
@@ -104,7 +105,7 @@ export class TimelineImpl implements Timeline {
       .scale(ratio, centerPoint, MIN_DURATION)
       .fitWithin(this.traceInfo.start, this.traceInfo.end);
 
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
   }
 
   panVisibleWindow(delta: number) {
@@ -112,7 +113,7 @@ export class TimelineImpl implements Timeline {
       .translate(delta)
       .fitWithin(this.traceInfo.start, this.traceInfo.end);
 
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
   }
 
   // Given a timestamp, if |ts| is not currently in view move the view to
@@ -164,7 +165,7 @@ export class TimelineImpl implements Timeline {
       .clampDuration(MIN_DURATION)
       .fitWithin(this.traceInfo.start, this.traceInfo.end);
 
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
   }
 
   // Get the bounds of the visible window as a high-precision time span
@@ -178,7 +179,7 @@ export class TimelineImpl implements Timeline {
 
   set hoverCursorTimestamp(t: time | undefined) {
     this._hoverCursorTimestamp = t;
-    raf.scheduleCanvasRedraw();
+    this.raf.scheduleCanvasRedraw();
   }
 
   /**

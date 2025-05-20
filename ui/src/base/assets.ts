@@ -19,9 +19,11 @@ let rootUrl = '';
 /**
  * This function must be called once while bootstrapping in a direct script
  * context (i.e. not a promise or callback). Typically frontend/index.ts.
+ * @param hostApplicationRelative relative path of the app directory when integrated
+ *   in some host application
  */
-export function initAssets() {
-  rootUrl = getServingRoot();
+export function initAssets(hostApplicationRelative?: string) {
+  rootUrl = getServingRoot(hostApplicationRelative);
 }
 
 /**
