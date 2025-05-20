@@ -26,6 +26,7 @@ import {errResult, okResult, Result} from '../../../../base/result';
 import {checkAndroidTarget} from '../adb_platform_checks';
 import {ConsumerIpcTracingSession} from '../../tracing_protocol/consumer_ipc_tracing_session';
 import {AsyncLazy} from '../../../../base/async_lazy';
+import {App} from '../../../../public/app';
 
 export class AdbWebusbTarget implements RecordingTarget {
   readonly kind = 'LIVE_RECORDING';
@@ -34,6 +35,7 @@ export class AdbWebusbTarget implements RecordingTarget {
   private adbDevice = new AsyncLazy<AdbWebusbDevice>();
 
   constructor(
+    private readonly app: App,
     private usbiface: AdbUsbInterface,
     private adbKeyMgr: AdbKeyManager,
   ) {}
@@ -55,7 +57,7 @@ export class AdbWebusbTarget implements RecordingTarget {
 
   async connectIfNeeded(): Promise<Result<AdbWebusbDevice>> {
     return this.adbDevice.getOrCreate(() =>
-      AdbWebusbDevice.connect(this.usbiface.dev, this.adbKeyMgr),
+      AdbWebusbDevice.connect(this.app, this.usbiface.dev, this.adbKeyMgr),
     );
   }
 

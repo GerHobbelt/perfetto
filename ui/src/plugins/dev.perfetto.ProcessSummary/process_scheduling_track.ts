@@ -144,7 +144,7 @@ export class ProcessSchedulingTrack implements TrackRenderer {
     visibleWindow,
     resolution,
   }: TrackRenderContext): Promise<void> {
-    await this.fetcher.requestData(visibleWindow.toTimeSpan(), resolution);
+    await this.fetcher.requestData(this.trace, visibleWindow.toTimeSpan(), resolution);
   }
 
   async onDestroy(): Promise<void> {

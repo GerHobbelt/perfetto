@@ -46,7 +46,7 @@ export class RafScheduler implements Raf {
   private isRedrawing = false;
   private _shutdown = false;
   private recordPerfStats = false;
-  private mounts = new Map<Element, m.ComponentTypes>();
+  private mounts = new Map<Element, Mount>();
 
   readonly perfStats = {
     rafActions: new PerfStats(),
@@ -109,14 +109,18 @@ export class RafScheduler implements Raf {
     };
   }
 
-  mount(element: Element, component: m.ComponentTypes | null): void {
+  mount(element: Element, component: null): void;
+  mount<A = {}>(element: Element, component: m.ComponentTypes<A>, attrs: A): void;
+  mount(element: Element, component: m.ComponentTypes): void;
+  mount(element: Element, component: m.ComponentTypes | null, attrs = {}): void {
     const mounts = this.mounts;
-    if (component === null) {
+    const mount = component ? {component, attrs} : component;
+    if (mount === null) {
       mounts.delete(element);
     } else {
-      mounts.set(element, component);
+      mounts.set(element, mount);
     }
-    this.syncDomRedrawMountEntry(element, component);
+    this.syncDomRedrawMountEntry(element, mount);
   }
 
   shutdown() {
@@ -147,7 +151,7 @@ export class RafScheduler implements Raf {
 
   private syncDomRedrawMountEntry(
     element: Element,
-    component: m.ComponentTypes | null,
+    mount: Mount | null,
   ) {
     // Mithril's render() function takes a third argument which tells us if a
     // further redraw is needed (e.g. due to managed event handler). This allows
@@ -159,9 +163,16 @@ export class RafScheduler implements Raf {
       redraw?: () => void,
     ) => void;
 
-    mithrilRender(element, component !== null ? m(component) : null, () =>
-      this.scheduleFullRedraw(),
-    );
+    if (mount === null) {
+      mithrilRender(element, mount, () =>
+        this.scheduleFullRedraw(),
+      );
+    } else {
+      const {component, attrs} = mount;
+      mithrilRender(element, component !== null ? m(component, attrs) : null, () =>
+        this.scheduleFullRedraw(),
+      );
+    }
   }
 
   private syncCanvasRedraw() {
@@ -224,4 +235,7 @@ export class RafScheduler implements Raf {
   }
 }
 
-export const raf = new RafScheduler();
+interface Mount<A = {}> {
+  component: m.ComponentTypes<A>;
+  attrs: A;
+}

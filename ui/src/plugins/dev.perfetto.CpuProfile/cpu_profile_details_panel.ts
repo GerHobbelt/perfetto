@@ -38,7 +38,7 @@ export class CpuProfileSampleFlamegraphDetailsPanel
   readonly serialization: TrackEventDetailsPanelSerializeArgs<FlamegraphState>;
 
   constructor(
-    trace: Trace,
+    private readonly trace: Trace,
     private ts: time,
     utid: number,
   ) {
@@ -98,7 +98,7 @@ export class CpuProfileSampleFlamegraphDetailsPanel
           fillParent: true,
           title: m('.title', 'CPU Profile Samples'),
           description: [],
-          buttons: [m('div.time', `Timestamp: `, m(Timestamp, {ts: this.ts}))],
+          buttons: [m('div.time', `Timestamp: `, m(Timestamp, {trace: this.trace, ts: this.ts}))],
         },
         this.flamegraph.render(),
       ),

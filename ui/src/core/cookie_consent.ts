@@ -13,17 +13,17 @@
 // limitations under the License.
 
 import m from 'mithril';
-import {AppImpl} from './app_impl';
+import {AppImplAttrs} from './app_impl';
 
 const COOKIE_ACK_KEY = 'cookieAck';
 
-export class CookieConsent implements m.ClassComponent {
+export class CookieConsent implements m.ClassComponent<AppImplAttrs> {
   private showCookieConsent = true;
 
-  oninit() {
+  oninit({attrs}: m.Vnode<AppImplAttrs>) {
     this.showCookieConsent = true;
     if (
-      !AppImpl.instance.analytics.isEnabled() ||
+      !attrs.app.analytics.isEnabled() ||
       localStorage.getItem(COOKIE_ACK_KEY) === 'true'
     ) {
       this.showCookieConsent = false;

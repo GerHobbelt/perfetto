@@ -16,6 +16,7 @@ import m from 'mithril';
 import {copyToClipboard} from '../../base/clipboard';
 import {Icons} from '../../base/semantic_icons';
 import {exists} from '../../base/utils';
+import {Trace} from '../../public/trace';
 import {addEphemeralTab} from '../details/add_ephemeral_tab';
 import {Upid} from '../sql_utils/core_types';
 import {
@@ -31,9 +32,9 @@ import {
   sqlIdRegistry,
 } from '../widgets/sql/details/sql_ref_renderer_registry';
 import {asUpid} from '../sql_utils/core_types';
-import {AppImpl} from '../../core/app_impl';
 
 export function showProcessDetailsMenuItem(
+  trace: Trace,
   upid: Upid,
   pid?: number,
 ): m.Children {
@@ -41,11 +42,8 @@ export function showProcessDetailsMenuItem(
     icon: Icons.ExternalLink,
     label: 'Show process details',
     onclick: () => {
-      // TODO(primiano): `trace` should be injected, but doing so would require
-      // an invasive refactoring of most classes in frontend/widgets/sql/*.
-      const trace = AppImpl.instance.trace;
-      if (trace === undefined) return;
       addEphemeralTab(
+        trace,
         'processDetails',
         new ProcessDetailsTab({
           trace,
@@ -57,7 +55,7 @@ export function showProcessDetailsMenuItem(
   });
 }
 
-export function processRefMenuItems(info: {
+export function processRefMenuItems(trace: Trace, info: {
   upid: Upid;
   name?: string;
   pid?: number;
@@ -82,23 +80,23 @@ export function processRefMenuItems(info: {
       label: 'Copy upid',
       onclick: () => copyToClipboard(`${info.upid}`),
     }),
-    showProcessDetailsMenuItem(info.upid, info.pid),
+    showProcessDetailsMenuItem(trace, info.upid, info.pid),
   ];
 }
 
-export function renderProcessRef(info: ProcessInfo): m.Children {
+export function renderProcessRef(trace: Trace, info: ProcessInfo): m.Children {
   return m(
     PopupMenu,
     {
       trigger: m(Anchor, getProcessName(info)),
     },
-    processRefMenuItems(info),
+    processRefMenuItems(trace, info),
   );
 }
 
 sqlIdRegistry['process'] = createSqlIdRefRenderer<ProcessInfo>(
   async (engine, id) => await getProcessInfo(engine, asUpid(Number(id))),
-  (data: ProcessInfo) => ({
-    value: renderProcessRef(data),
+  (trace: Trace, data: ProcessInfo) => ({
+    value: renderProcessRef(trace, data),
   }),
 );
