@@ -170,11 +170,16 @@ async function loadTraceIntoEngine(
   } else if (traceSource.type === 'URL') {
     traceStream = new TraceHttpStream(traceSource.url);
     serializedAppState = traceSource.serializedAppState;
+  } else if (traceSource.type === 'STREAM') {
+    traceStream = traceSource.stream;
   } else if (traceSource.type === 'HTTP_RPC') {
     traceStream = undefined;
   } else {
     throw new Error(`Unknown source: ${JSON.stringify(traceSource)}`);
   }
+
+  // Maybe serialized app state was injected from the host application
+  serializedAppState ??= app.integrationContext?.appState;
 
   // |traceStream| can be undefined in the case when we are using the external
   // HTTP+RPC endpoint and the trace processor instance has already loaded
