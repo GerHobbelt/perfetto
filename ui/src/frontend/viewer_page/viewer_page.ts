@@ -45,11 +45,11 @@ export function renderViewerPage() {
   }
 }
 
-interface ViewerPageAttrs {
+export interface ViewerPageAttrs {
   readonly trace: TraceImpl;
 }
 
-class ViewerPage implements m.ClassComponent<ViewerPageAttrs> {
+export class ViewerPage implements m.ClassComponent<ViewerPageAttrs> {
   private readonly trash = new DisposableStack();
   private timelineBounds?: Rect2D;
 

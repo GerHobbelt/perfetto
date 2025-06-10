@@ -170,6 +170,8 @@ async function loadTraceIntoEngine(
   } else if (traceSource.type === 'URL') {
     traceStream = new TraceHttpStream(traceSource.url);
     serializedAppState = traceSource.serializedAppState;
+  } else if (traceSource.type === 'STREAM') {
+    traceStream = traceSource.stream;
   } else if (traceSource.type === 'HTTP_RPC') {
     traceStream = undefined;
   } else {

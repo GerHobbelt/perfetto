@@ -28,7 +28,7 @@ import {TraceImpl} from '../../core/trace_impl';
 import {TimestampFormat} from '../../public/timeline';
 import {LONG, NUM} from '../../trace_processor/query_result';
 import {VirtualOverlayCanvas} from '../../widgets/virtual_overlay_canvas';
-import {OVERVIEW_TIMELINE_NON_VISIBLE_COLOR} from '../css_constants';
+import {OVERVIEW_TIMELINE_NON_VISIBLE_COLOR, TRACK_SHELL_WIDTH} from '../css_constants';
 import {
   generateTicks,
   getMaxMajorTicks,
@@ -111,6 +111,10 @@ export class OverviewTimeline
       const maxMajorTicks = getMaxMajorTicks(size.width);
       const offset = trace.timeline.timestampOffset();
       const tickGen = generateTicks(traceContext, maxMajorTicks, offset);
+
+      // Set a background of color --perfetto-overview-background
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--perfetto-overview-background').trim() || 'white';
+      ctx.fillRect(TRACK_SHELL_WIDTH, headerHeight, size.width, size.height - headerHeight);
 
       // Draw time labels
       ctx.font = '10px Roboto Condensed';

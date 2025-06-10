@@ -50,6 +50,10 @@ import {
 import {addVisualizedArgTracks} from '../components/tracks/visualized_args_tracks';
 import {addQueryResultsTab} from '../components/query_table/query_result_tab';
 import {assetSrc, initAssets} from '../base/assets';
+import {IntegrationContext} from '../core/integration_context';
+
+export {globals} from './globals';
+export {ViewerPage} from './viewer_page/viewer_page';
 
 const CSP_WS_PERMISSIVE_PORT = featureFlags.register({
   id: 'cspAllowAnyWebsocketPort',
@@ -73,10 +77,33 @@ function routeChange(route: Route) {
       }
     }
   });
-  maybeOpenTraceFromRoute(route);
+
+  const integrationContext = IntegrationContext.instance;
+  if (!integrationContext?.disableHashBasedRouting) {
+    maybeOpenTraceFromRoute(route);
+  }
 }
 
 function setupContentSecurityPolicy() {
+  const integrationContext = IntegrationContext.instance;
+  const defaultSrc = integrationContext?.relaxContentSecurity ? [
+    `'self'`,
+    `'unsafe-inline'`,
+  ] : [
+    `'self'`,
+    // Google Tag Manager bootstrap.
+    `'sha256-LirUKeorCU4uRNtNzr8tlB11uy8rzrdmqHCX38JSwHY='`,
+  ];
+  let connectSrc = integrationContext?.relaxContentSecurity ? [
+    '*',
+  ] : [
+    `'self'`,
+    'ws://127.0.0.1:8037',    // For the adb websocket server.
+    'https://www.google-analytics.com',
+    'https://*.googleapis.com',  // For Google Cloud Storage fetches.
+    'blob:',
+    'data:',
+  ];
   // Note: self and sha-xxx must be quoted, urls data: and blob: must not.
 
   let rpcPolicy = [
@@ -93,12 +120,11 @@ function setupContentSecurityPolicy() {
       ];
     }
   }
+  if (!integrationContext?.relaxContentSecurity) {
+    connectSrc = connectSrc.concat(rpcPolicy);
+  }
   const policy = {
-    'default-src': [
-      `'self'`,
-      // Google Tag Manager bootstrap.
-      `'sha256-LirUKeorCU4uRNtNzr8tlB11uy8rzrdmqHCX38JSwHY='`,
-    ],
+    'default-src': defaultSrc,
     'script-src': [
       `'self'`,
       // TODO(b/201596551): this is required for Wasm after crrev.com/c/3179051
@@ -110,14 +136,7 @@ function setupContentSecurityPolicy() {
       'https://*.google-analytics.com',
     ],
     'object-src': ['none'],
-    'connect-src': [
-      `'self'`,
-      'ws://127.0.0.1:8037', // For the adb websocket server.
-      'https://*.google-analytics.com',
-      'https://*.googleapis.com', // For Google Cloud Storage fetches.
-      'blob:',
-      'data:',
-    ].concat(rpcPolicy),
+    'connect-src': connectSrc,
     'img-src': [
       `'self'`,
       'data:',
@@ -211,18 +230,20 @@ function main() {
 
 function onCssLoaded() {
   initCssConstants();
-  // Clear all the contents of the initial page (e.g. the <pre> error message)
-  // And replace it with the root <main> element which will be used by mithril.
-  document.body.innerHTML = '';
-
   const pages = AppImpl.instance.pages;
   pages.registerPage({route: '/', render: () => m(HomePage)});
   pages.registerPage({route: '/viewer', render: () => renderViewerPage()});
   const router = new Router();
   router.onRouteChanged = routeChange;
 
-  // Mount the main mithril component. This also forces a sync render pass.
-  raf.mount(document.body, UiMain);
+  if (!IntegrationContext.instance?.disableMainRendering) {
+    // Clear all the contents of the initial page (e.g. the <pre> error message)
+    // And replace it with the root <main> element which will be used by mithril.
+    document.body.innerHTML = '';
+
+    // Mount the main mithril component. This also forces a sync render pass.
+    raf.mount(document.body, UiMain);
+  }
 
   if (
     (location.origin.startsWith('http://localhost:') ||
@@ -242,7 +263,7 @@ function onCssLoaded() {
   maybeChangeRpcPortFromFragment();
   CheckHttpRpcConnection().then(() => {
     const route = Router.parseUrl(window.location.href);
-    if (!AppImpl.instance.embeddedMode) {
+    if (!AppImpl.instance.embeddedMode && IntegrationContext.instance?.allowFileDrop) {
       installFileDropHandler();
     }
 
