@@ -48,6 +48,19 @@ class TraceErrorIcon implements m.ClassComponent<TraceImplAttrs> {
     const message = Boolean(totErrors)
       ? `${totErrors} import or data loss errors detected.`
       : `Metric error detected.`;
+
+    const icon = m(
+      'i.pf-material-icons',
+      {
+        title: message + ` Click for more info.`
+      },
+      'announcement');
+
+    const viewOpener = AppImpl.instance.integrationContext.viewOpener;
+    const infoButton = viewOpener ?
+       m('button.error', {onclick: () => viewOpener('#!/info')}, icon) :
+       m('a.error', {href: '#!/info'}, icon);
+
     return m(
       '.pf-error-box',
       m(
@@ -63,17 +76,7 @@ class TraceErrorIcon implements m.ClassComponent<TraceImplAttrs> {
         },
         m('.pf-error-popup', 'Data-loss/import error. Click for more info.'),
       ),
-      m(
-        'a.error',
-        {href: '#!/info'},
-        m(
-          'i.material-icons',
-          {
-            title: message + ` Click for more info.`,
-          },
-          'announcement',
-        ),
-      ),
+      infoButton,
     );
   }
 }
