@@ -15,6 +15,7 @@
 import m from 'mithril';
 import {assertTrue} from '../base/logging';
 import {RouteArgs, ROUTE_SCHEMA} from '../public/route_schema';
+import {IntegrationContext} from './integration_context';
 
 export const ROUTE_PREFIX = '#!';
 
@@ -82,11 +83,22 @@ export class Router {
     this.onRouteChanged(route);
   }
 
+  private static get context() {
+    return IntegrationContext.instance;
+  }
+
   private onHashChange(e: HashChangeEvent) {
     this.crashIfLivelock();
 
     const oldRoute = Router.parseUrl(e.oldURL);
     const newRoute = Router.parseUrl(e.newURL);
+
+    if (Router.context?.disableHashBasedRouting && newRoute.page.length === 0 && newRoute.subpage.length === 0) {
+      // the application that disabled hash based routing
+      // made a change that either removed our routes or was unrelated
+      // -> no op
+      return;
+    }
 
     if (
       newRoute.args.local_cache_key === undefined &&
@@ -107,13 +119,16 @@ export class Router {
       newRoute.args.local_cache_key = oldRoute.args.local_cache_key;
     }
 
-    const args = m.buildQueryString(newRoute.args);
+    const args = Router.buildQueryString(newRoute.args);
     let normalizedFragment = `#!${newRoute.page}${newRoute.subpage}`;
     if (args.length) {
       normalizedFragment += `?${args}`;
     }
     if (newRoute.fragment) {
       normalizedFragment += `#${newRoute.fragment}`;
+    }
+    if (Router.context?.disableHashBasedRouting) {
+      normalizedFragment = Router.hashBasedToParamBasedFragment(normalizedFragment);
     }
 
     if (!e.newURL.endsWith(normalizedFragment)) {
@@ -124,9 +139,72 @@ export class Router {
     this.onRouteChanged(newRoute);
   }
 
+  static hashBasedToParamBasedFragment(fragment: string): string {
+    return fragment.replace("?", "&").replace("#!/", "?page=");
+  }
+
+  // Remove existing hash and transform params to hash based fragment
+  // Example input: '#/home/foo?page=viewer&local_cache_key=abcd-1234'
+  static paramBasedToHashBasedFragment(hash: string): string {
+    const urlParamIndex = hash.indexOf('?');
+    if (urlParamIndex >= 0) {
+      const fragment = hash.substring(urlParamIndex);
+      return fragment.replace("?page=", "#!/").replace("&", "?");
+    } else {
+      return hash;
+    }
+  }
+
+  static buildQueryString(args: RouteArgs): string {
+    return this.context?.disableHashBasedRouting
+      ? Router.emptyPreservingBuildQueryString(args)
+      : m.buildQueryString(args);
+  }
+
+  static emptyPreservingBuildQueryString(values: m.Params) {
+    // same as m.buildQueryString but with an adaptation in destructure where we keep empty strings as values
+    // Url may come in the form of '?local_cache_key=' but the default query string builder results in '?local_cache_key' removing the empty string
+    // when we do the URL 'endsWith' check on hash change they do not match and we may end up in an endless loop where we keep replacing the location
+    if (Object.prototype.toString.call(values) !== "[object Object]") {
+      return "";
+    }
+    const args: string[] = [];
+    for (const key2 in values) {
+      destructure(key2, values[key2]);
+    }
+    return args.join("&");
+
+    function destructure(key2: string, value1: any) {
+      if (Array.isArray(value1)) {
+        for (let i = 0; i < value1.length; i++) {
+          destructure(key2 + "[" + i + "]", value1[i]);
+        }
+      }
+      else if (Object.prototype.toString.call(value1) === "[object Object]") {
+        for (const k in value1) {
+          destructure(key2 + "[" + k + "]", value1[k]);
+        }
+      }
+      else args.push(encodeURIComponent(key2) + (value1 != null ? "=" + encodeURIComponent(value1) : ""));
+    }
+  }
+
   static navigate(newHash: string) {
     assertTrue(newHash.startsWith(ROUTE_PREFIX));
-    window.location.hash = newHash;
+    if (!this.context?.disableHashBasedRouting) {
+      window.location.hash = newHash;
+    } else {
+      // Hash based routing is disabled (usually because perfetto is embedded in an application that uses the hash itself).
+      // Transform newHash to be param based and append to existing hash in URL (while dropping any params)
+      const currentHash = window.location.hash;
+      const urlParamIndex = currentHash.indexOf('?');
+      let toKeep = currentHash;
+      if (urlParamIndex >= 0) {
+        toKeep = currentHash.substring(0, urlParamIndex);
+      }
+      const newParams = Router.hashBasedToParamBasedFragment(newHash);
+      window.location.hash = toKeep + newParams;
+    }
   }
 
   // Breaks down a fragment into a Route object.
@@ -140,6 +218,9 @@ export class Router {
   //  args: {local_cache_key: 'abcd-1234'}
   // }
   static parseFragment(hash: string): Route {
+    if (this.context?.disableHashBasedRouting) {
+      hash = Router.paramBasedToHashBasedFragment(hash);
+    }
     if (hash.startsWith(ROUTE_PREFIX)) {
       hash = hash.substring(ROUTE_PREFIX.length);
     } else {

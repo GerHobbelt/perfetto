@@ -106,7 +106,8 @@ body.testing {
   }
 }
 
-body > main {
+body > main,
+main.perfetto {
   display: grid;
   grid-template-areas:
     "sidebar topbar"
