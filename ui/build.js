@@ -91,6 +91,7 @@ const cfg = {
   crossOriginIsolation: false,
   testFilter: '',
   noOverrideGnArgs: false,
+  electron: false,
   embedded: false,
 
   // The fields below will be changed by main() after cmdline parsing.
@@ -166,6 +167,10 @@ async function main() {
     action: 'store_true',
     help: 'Build for embedding Perfetto UI in other applications (affects especially CSS)'
   });
+  parser.add_argument('--electron', {
+    action: 'store_true',
+    help: 'Collect CSS and WASM files for packaging in an Electron application'
+  });
 
   const args = parser.parse_args();
   const clean = !args.no_build;
@@ -187,6 +192,7 @@ async function main() {
   cfg.openPerfettoTrace = !!args.open_perfetto_trace;
   cfg.startHttpServer = args.serve;
   cfg.noOverrideGnArgs = !!args.no_override_gn_args;
+  cfg.electron = !!args.electron;
   if (args.minify_js) {
     cfg.minifyJs = args.minify_js;
   }
@@ -296,6 +302,14 @@ async function main() {
 
     bundleJs('rollup.config.js');
     genServiceWorkerManifestJson();
+    
+    if (cfg.electron) {
+      copyCSSAndWASM();
+      
+      // In order to install multiple copies of this package, it
+      // cannot just symlink the compiled code
+      addTask(resorbLink, [pjoin(ROOT_DIR, 'ui/out')]);
+    }
 
     // Watches the /dist. When changed:
     // - Notifies the HTTP live reload clients.
@@ -549,6 +563,21 @@ function buildWasm(skipWasmBuild) {
       addTask(cp, [pjoin(wasmOutDir, fname), pjoin(cfg.outGenDir, fname)]);
     }
   }
+}
+
+function copyCSSAndWASM() {
+  const css = pjoin(cfg.outDistDir, 'perfetto.css');
+  const assets = pjoin(cfg.outDistDir, 'assets')
+  const engine_bundle = pjoin(cfg.outDistDir, 'engine_bundle.js');
+  const trace_processor = pjoin(cfg.outDistDir, 'trace_processor.wasm');
+  const traceconv_bundle = pjoin(cfg.outDistDir, 'traceconv_bundle.js');
+  const traceconv = pjoin(cfg.outDistDir, 'traceconv.wasm');
+  addTask(cp, [css, pjoin(ROOT_DIR, 'ui', 'css',  'perfetto.css')]);
+  addTask(cpR, [assets, pjoin(ROOT_DIR, 'ui', 'css', 'assets')]);
+  addTask(cp, [engine_bundle, pjoin(ROOT_DIR, 'ui', 'wasm',  'engine_bundle.js')]);
+  addTask(cp, [trace_processor, pjoin(ROOT_DIR, 'ui', 'wasm',  'trace_processor.wasm')]);
+  addTask(cp, [traceconv_bundle, pjoin(ROOT_DIR, 'ui', 'wasm',  'traceconv_bundle.js')]);
+  addTask(cp, [traceconv, pjoin(ROOT_DIR, 'ui', 'wasm',  'traceconv.wasm')]);
 }
 
 // This transpiles all the sources (frontend, controller, engine, extension) in
@@ -899,17 +928,42 @@ function cp(src, dst) {
   fs.copyFileSync(src, dst);
 }
 
+function cpR(src, dst) {
+  ensureDir(path.dirname(dst));
+  if (cfg.verbose) {
+    console.log(
+        'cp -r', path.relative(ROOT_DIR, src), '->', path.relative(ROOT_DIR, dst));
+  }
+  fs.cpSync(src, dst, {recursive: true});
+}
+
 function mklink(src, dst) {
   // If the symlink already points to the right place don't touch it. This is
   // to avoid changing the mtime of the ui/ dir when unnecessary.
   if (fs.existsSync(dst)) {
     if (fs.lstatSync(dst).isSymbolicLink() && fs.readlinkSync(dst) === src) {
       return;
-    } else {
+    } else if (fs.lstatSync(dst).isSymbolicLink()) {
       fs.unlinkSync(dst);
+    } else {
+      // It may have been a symlink that was resorbed
+      fs.rmSync(dst, {recursive: true});
     }
   }
   fs.symlinkSync(src, dst);
 }
 
+// Given a putative link, replace it with a copy of what it is
+// linking to. If it's not a link, leave it because we just don't
+// want a link.
+function resorbLink(link) {
+  const stat = fs.lstatSync(link, {throwIfNoEntry: false});
+  if (stat?.isSymbolicLink()) {
+    const src = fs.readlinkSync(link);
+    fs.unlinkSync(link);
+    cpR(src, link);
+  }
+}
+
 main();
+

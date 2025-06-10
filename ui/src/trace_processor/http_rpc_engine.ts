@@ -28,6 +28,7 @@ export interface HttpRpcState {
 export class HttpRpcEngine extends EngineBase {
   readonly mode = 'HTTP_RPC';
   readonly id: string;
+  closeHandler: (event: CloseEvent) => void = (e) => super.fail(`Websocket closed (${e.code}: ${e.reason}) (ERR:ws)`);
   private requestQueue = new Array<Uint8Array>();
   private websocket?: WebSocket;
   private connected = false;
@@ -83,7 +84,7 @@ export class HttpRpcEngine extends EngineBase {
       this.connected = false;
       this.rpcSendRequestBytes(new Uint8Array()); // Triggers a reconnection.
     } else {
-      super.fail(`Websocket closed (${e.code}: ${e.reason}) (ERR:ws)`);
+      this.closeHandler(e);
     }
   }
 

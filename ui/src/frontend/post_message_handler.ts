@@ -20,6 +20,7 @@ import {initCssConstants} from './css_constants';
 import {toggleHelp} from './help_modal';
 import {scrollTo} from '../public/scroll_helper';
 import {AppImpl} from '../core/app_impl';
+import {IntegrationContext} from '../core/integration_context';
 
 const TRUSTED_ORIGINS_KEY = 'trustedOrigins';
 
@@ -184,12 +185,13 @@ export function postMessageHandler(messageEvent: MessageEvent) {
   } else if (messageEvent.data instanceof ArrayBuffer) {
     postedTrace = {title: 'External trace', buffer: messageEvent.data};
   } else {
-    console.warn(
-      'Unknown postMessage() event received. If you are trying to open a ' +
+    if (!IntegrationContext.instance?.ignoreUnknownPostMessage) {
+      console.warn(
+        'Unknown postMessage() event received. If you are trying to open a ' +
         'trace via postMessage(), this is a bug in your code. If not, this ' +
-        'could be due to some Chrome extension.',
-    );
-    console.log('origin:', messageEvent.origin, 'data:', messageEvent.data);
+        'could be due to some Chrome extension.');
+      console.log('origin:', messageEvent.origin, 'data:', messageEvent.data);
+    }
     return;
   }
 
