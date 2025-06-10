@@ -64,7 +64,8 @@ html {
 
 html,
 body,
-body > main {
+body > main,
+main.perfetto {
   height: 100%;
   width: 100%;
   padding: 0;
@@ -98,7 +99,8 @@ table {
   user-select: text;
 }
 
-body > main {
+body > main,
+main.perfetto {
   display: grid;
   grid-template-areas:
     "sidebar topbar"
