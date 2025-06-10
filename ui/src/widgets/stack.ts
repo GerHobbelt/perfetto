@@ -15,7 +15,7 @@
 import m from 'mithril';
 import {classNames} from '../base/classnames';
 
-interface StackAttrs {
+export interface StackAttrs {
   readonly orientation?: 'horizontal' | 'vertical';
   readonly fillHeight?: boolean;
   readonly gap?: 'none' | 'normal';
