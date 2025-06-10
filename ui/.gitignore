@@ -2,3 +2,5 @@
 /out
 /src/gen
 /playwright/.cache/
+/css
+/wasm

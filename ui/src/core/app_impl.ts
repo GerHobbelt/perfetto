@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import {AsyncLimiter} from '../base/async_limiter';
+import {defer} from '../base/deferred';
 import {assertExists, assertTrue} from '../base/logging';
 import {createProxy, getOrCreate} from '../base/utils';
 import {ServiceWorkerController} from '../frontend/service_worker_controller';
@@ -24,10 +25,12 @@ import {Raf} from '../public/raf';
 import {RouteArgs} from '../public/route_schema';
 import {Setting, SettingsManager} from '../public/settings';
 import {DurationPrecision, TimestampFormat} from '../public/timeline';
+import {Trace} from '../public/trace';
 import {NewEngineMode} from '../trace_processor/engine';
 import {AnalyticsInternal, initAnalytics} from './analytics_impl';
 import {CommandManagerImpl} from './command_manager';
 import {featureFlags} from './feature_flags';
+import {IntegrationContext} from './integration_context';
 import {loadTrace} from './load_trace';
 import {OmniboxManagerImpl} from './omnibox_manager';
 import {PageManagerImpl} from './page_manager';
@@ -40,6 +43,7 @@ import {SidebarManagerImpl} from './sidebar_manager';
 import {SerializedAppState} from './state_serialization_schema';
 import {TraceContext, TraceImpl} from './trace_impl';
 import {PostedTrace, TraceSource} from './trace_source';
+import {TraceStream} from './trace_stream';
 
 // The args that frontend/index.ts passes when calling AppImpl.initialize().
 // This is to deal with injections that would otherwise cause circular deps.
@@ -49,6 +53,7 @@ export interface AppInitArgs {
   readonly timestampFormatSetting: Setting<TimestampFormat>;
   readonly durationPrecisionSetting: Setting<DurationPrecision>;
   readonly timezoneOverrideSetting: Setting<string>;
+  integrationContext?: IntegrationContext;
 }
 
 /**
@@ -82,6 +87,8 @@ export class AppContext {
   readonly openTraceAsyncLimiter = new AsyncLimiter();
   readonly settingsManager: SettingsManagerImpl;
 
+  readonly integrationContext: IntegrationContext;
+
   // This is normally empty and is injected with extra google-internal packages
   // via is_internal_user.js
   extraSqlPackages: SqlPackage[] = [];
@@ -112,7 +119,8 @@ export class AppContext {
     this.timezoneOverride = initArgs.timezoneOverrideSetting;
     this.settingsManager = initArgs.settingsManager;
     this.initArgs = initArgs;
-    this.initialRouteArgs = initArgs.initialRouteArgs;
+    this.integrationContext = initArgs.integrationContext ?? IntegrationContext.initialize();
+    this.initialRouteArgs = {...initArgs.initialRouteArgs, ...this.integrationContext.initialRouteArgs};
     this.serviceWorkerController = new ServiceWorkerController();
     this.embeddedMode = this.initialRouteArgs.mode === 'embedded';
     this.testingMode =
@@ -274,20 +282,24 @@ export class AppImpl implements App {
     };
   }
 
-  openTraceFromFile(file: File): void {
-    this.openTrace({type: 'FILE', file});
+  openTraceFromFile(file: File) {
+    return this.openTrace({type: 'FILE', file});
   }
 
   openTraceFromUrl(url: string, serializedAppState?: SerializedAppState) {
-    this.openTrace({type: 'URL', url, serializedAppState});
+    return this.openTrace({type: 'URL', url, serializedAppState});
   }
 
-  openTraceFromBuffer(postMessageArgs: PostedTrace): void {
-    this.openTrace({type: 'ARRAY_BUFFER', ...postMessageArgs});
+  openTraceFromStream(stream: TraceStream) {
+    return this.openTrace({type: 'STREAM', stream});
   }
 
-  openTraceFromHttpRpc(): void {
-    this.openTrace({type: 'HTTP_RPC'});
+  openTraceFromBuffer(postMessageArgs: PostedTrace) {
+    return this.openTrace({type: 'ARRAY_BUFFER', ...postMessageArgs});
+  }
+
+  openTraceFromHttpRpc() {
+    return this.openTrace({type: 'HTTP_RPC'});
   }
 
   private async openTrace(src: TraceSource) {
@@ -309,13 +321,15 @@ export class AppImpl implements App {
       }
     }
 
+    const result = defer<Trace>();
+
     // Rationale for asyncLimiter: openTrace takes several seconds and involves
     // a long sequence of async tasks (e.g. invoking plugins' onLoad()). These
     // tasks cannot overlap if the user opens traces in rapid succession, as
     // they will mess up the state of registries. So once we start, we must
     // complete trace loading (we don't bother supporting cancellations. If the
     // user is too bothered, they can reload the tab).
-    this.appCtx.openTraceAsyncLimiter.schedule(async () => {
+    await this.appCtx.openTraceAsyncLimiter.schedule(async () => {
       this.appCtx.closeCurrentTrace();
       this.appCtx.isLoadingTrace = true;
       try {
@@ -326,18 +340,24 @@ export class AppImpl implements App {
         // - Call AppImpl.setActiveTrace(TraceImpl)
         // - Continue with the trace loading logic (track decider, plugins, etc)
         // - Resolve the promise when everything is done.
-        await loadTrace(this, src);
+        const trace = await loadTrace(this, src);
         this.omnibox.reset(/* focus= */ false);
         // loadTrace() internally will call setActiveTrace() and change our
         // _currentTrace in the middle of its ececution. We cannot wait for
         // loadTrace to be finished before setting it because some internal
         // implementation details of loadTrace() rely on that trace to be current
         // to work properly (mainly the router hash uuid).
+
+        result.resolve(trace);
+      } catch (error) {
+        result.reject(error);
       } finally {
         this.appCtx.isLoadingTrace = false;
         raf.scheduleFullRedraw();
       }
     });
+
+    return result;
   }
 
   // Called by trace_loader.ts soon after it has created a new TraceImpl.
@@ -378,6 +398,10 @@ export class AppImpl implements App {
   // and app_impl.ts.
   get __appCtxForTrace() {
     return this.appCtx;
+  }
+
+  get integrationContext() {
+    return this.appCtx.integrationContext;
   }
 
   navigate(newHash: string): void {

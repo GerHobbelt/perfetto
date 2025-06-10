@@ -86,6 +86,10 @@ export function addErrorHandler(handler: ErrorHandler) {
   }
 }
 
+export function clearErrorHandlers() {
+  return errorHandlers.splice(0);
+}
+
 export function reportError(err: ErrorEvent | PromiseRejectionEvent | {}) {
   let errorObj = undefined;
   let errMsg = '';
