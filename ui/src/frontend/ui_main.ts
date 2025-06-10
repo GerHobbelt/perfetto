@@ -735,7 +735,7 @@ export class UiMainPerTrace implements m.ClassComponent {
       HotkeyContext,
       {hotkeys},
       m(
-        'main',
+        'main.perfetto',
         m(Sidebar, {trace: this.trace}),
         m(Topbar, {
           omnibox: this.renderOmnibox(),
