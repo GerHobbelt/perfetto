@@ -18,7 +18,7 @@ import {SqlModules} from '../../dev.perfetto.SqlModules/sql_modules';
 import {QueryNode} from '../query_node';
 import {Query, QueryNodeExplorer} from './query_node_explorer';
 import {QueryCanvas} from './query_canvas';
-import {Trace} from 'src/public/trace';
+import {Trace} from '../../../public/trace';
 import {NodeDataViewer} from './node_data_viewer';
 
 export interface QueryBuilderAttrs {
