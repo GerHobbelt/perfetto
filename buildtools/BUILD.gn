@@ -1170,7 +1170,7 @@ config("zlib_config") {
   visibility = _buildtools_visibility
   defines = [
     "ZLIB_IMPLEMENTATION",
-    "CHROMIUM_ZLIB_NO_CHROMECONF",
+    "CHROMIUM_ZLIB_NO_CHROMECONF=",
   ]
   cflags = [
     # Using -isystem instead of include_dirs (-I), so we don't need to suppress

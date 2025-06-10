@@ -19,6 +19,7 @@ import {VERSION} from '../gen/perfetto_version';
 import {HttpRpcEngine} from '../trace_processor/http_rpc_engine';
 import {showModal} from '../widgets/modal';
 import {AppImpl} from '../core/app_impl';
+import {IntegrationContext} from '../core/integration_context';
 
 const CURRENT_API_VERSION =
   protos.TraceProcessorApiVersion.TRACE_PROCESSOR_CURRENT_API_VERSION;
@@ -202,7 +203,7 @@ export async function CheckHttpRpcConnection(): Promise<void> {
   }
 
   // Check if pre-loaded:
-  if (tpStatus.loadedTraceName) {
+  if (tpStatus.loadedTraceName && IntegrationContext.instance?.promptToLoadFromTraceProcessorShell) {
     // If a trace is already loaded in the trace processor (e.g., the user
     // launched trace_processor_shell -D trace_file.pftrace), prompt the user to
     // initialize the UI with the already-loaded trace.
