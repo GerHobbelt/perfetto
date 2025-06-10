@@ -112,6 +112,11 @@ export class KeyboardNavigationHandler implements Disposable {
     this.onPanned = onPanned;
     this.onZoomed = onZoomed;
     this.trash = new DisposableStack();
+  
+    if (!element.getAttribute('tabindex')) {
+      // Make it focusable and also tabbable for keyboard accessibility
+      element.setAttribute('tabindex', '0');
+    }
 
     document.body.addEventListener('keydown', this.boundOnKeyDown);
     document.body.addEventListener('keyup', this.boundOnKeyUp);
@@ -174,7 +179,8 @@ export class KeyboardNavigationHandler implements Disposable {
     if (e instanceof KeyboardEvent) {
       if (elementIsEditable(e.target)) return;
 
-      if (e.ctrlKey || e.metaKey) return;
+      // Ignore key events that are not for us
+      if (!this.shouldHandleKey(e)) return;
 
       if (keyToPan(e) !== Pan.None) {
         if (this.panning !== keyToPan(e)) {
@@ -200,7 +206,8 @@ export class KeyboardNavigationHandler implements Disposable {
 
   private onKeyUp(e: Event) {
     if (e instanceof KeyboardEvent) {
-      if (e.ctrlKey || e.metaKey) return;
+      // Ignore key events that are not for us
+      if (!this.shouldHandleKey(e)) return;
 
       if (keyToPan(e) === this.panning) {
         this.panning = Pan.None;
@@ -210,4 +217,9 @@ export class KeyboardNavigationHandler implements Disposable {
       }
     }
   }
+
+  private shouldHandleKey(e: KeyboardEvent) {
+    return !e.ctrlKey && !e.metaKey && this.element.contains(document.activeElement);
+  }
 }
+

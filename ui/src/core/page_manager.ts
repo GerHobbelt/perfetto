@@ -63,7 +63,7 @@ export class PageManagerImpl {
 
   // Will return undefined if either: (1) the route does not exist; (2) the
   // route exists, it requires a trace, but there is no trace loaded.
-  private renderPageForRoute(page: string, subpage: string) {
+  renderPageForRoute(page: string, subpage: string): m.Children {
     const handler = this.registry.tryGet(page);
     if (handler === undefined) {
       return undefined;
