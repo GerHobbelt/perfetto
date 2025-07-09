@@ -679,7 +679,7 @@ function SegmentedButtonsDemo({attrs}: {attrs: {}}) {
 export class WidgetsPage implements m.ClassComponent<{app: App}> {
   view({attrs}: m.Vnode<{app: App}>) {
     return m(
-      '.widgets-page',
+      '.pf-widgets-page',
       m('h1', 'Widgets'),
       m(WidgetShowcase, {
         label: 'Button',
