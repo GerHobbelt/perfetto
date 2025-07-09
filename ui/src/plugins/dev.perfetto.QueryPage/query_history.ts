@@ -43,7 +43,7 @@ export class QueryHistoryComponent
     return m(
       '.query-history',
       m(
-        'header.overview',
+        'header.pf-overview',
         `Query history (${queryHistoryStorage.data.length} queries)`,
       ),
       starred.map((attrs) => m(HistoryItemComponent, attrs)),
@@ -66,9 +66,9 @@ export class HistoryItemComponent
   view(vnode: m.Vnode<HistoryItemComponentAttrs>): m.Child {
     const query = vnode.attrs.entry.query;
     return m(
-      '.history-item',
+      '.pf-history-item',
       m(
-        '.history-item-buttons',
+        '.pf-history-item-buttons',
         m(
           'button',
           {

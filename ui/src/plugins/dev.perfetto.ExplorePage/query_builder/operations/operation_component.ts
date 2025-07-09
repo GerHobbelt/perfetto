@@ -32,7 +32,7 @@ export interface OperatorAttrs {
 export class Operator implements m.ClassComponent<OperatorAttrs> {
   view({attrs}: m.CVnode<OperatorAttrs>): m.Children {
     return m(
-      '.explore-page__rowish',
+      '.pf-explore-page__rowish',
       m(Section, {title: 'Filters'}, m(FilterOperation, attrs.filter)),
       m(Section, {title: 'Aggregation'}, m(GroupByOperation, attrs.groupby)),
     );

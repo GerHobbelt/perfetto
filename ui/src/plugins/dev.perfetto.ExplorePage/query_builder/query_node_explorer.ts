@@ -161,7 +161,7 @@ export class QueryNodeExplorer
           attrs.node.coreModify(),
           this.selectedView === SelectedView.kSql &&
             m(
-              '.code-snippet',
+              '.pf-code-snippet',
               m(Button, {
                 title: 'Copy to clipboard',
                 onclick: () => copyToClipboard(sql),
@@ -172,7 +172,7 @@ export class QueryNodeExplorer
           this.selectedView === SelectedView.kModify && operators(),
           this.selectedView === SelectedView.kProto &&
             m(
-              '.code-snippet',
+              '.pf-code-snippet',
               m(Button, {
                 title: 'Copy to clipboard',
                 onclick: () => copyToClipboard(textproto),
