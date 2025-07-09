@@ -15,325 +15,54 @@
 @import "widgets/theme";
 
 :root {
-  --record-text-color: #333;
+  --pf-record-text-color: #333;
 }
 
 // The whole record page.
-.record-page {
+.pf-record-page {
   position: relative;
   overflow-y: scroll;
   background-color: #fefefe;
   padding: 40px 20px;
-}
-
-// The always-visible centered box that has menu and sections on the right.
-.record-container {
-  position: relative;
-  max-width: 900px;
-  min-height: 500px;
-  margin: auto;
-  border-radius: $pf-border-radius;
-  box-shadow:
-    0 1px 2px 0 #aaa,
-    0 1px 3px 1px #eee;
-  background-color: #fff;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  grid-template-areas:
-    "header"
-    "content";
-  overflow: hidden;
-  z-index: 6;
-
-  // The body of the record container.
-  .record-container-content {
-    display: grid;
-    grid-template-columns: 2fr 5fr;
-    grid-template-areas: "sidebar section";
-  }
-
-  .full-centered {
-    width: 100%;
-    height: 100%;
-    text-align: center;
-    padding: 180px 30px;
-    font-family: "Roboto", sans-serif;
-    font-size: 25px;
-  }
-}
-
-.record-modal {
-  display: flex;
-  flex-direction: column;
-
-  .line {
-    padding: 10px 10px 10px 10px;
-    border-bottom: 1px solid #808080;
-  }
-
-  .record-modal-section {
-    display: flex;
-    flex-direction: row;
-
-    .logo-wrapping {
-      width: 150px;
-      height: 150px;
-      display: inline-block;
-      margin: 50px 30px 0px 0px;
-      align-self: center;
-
-      i.material-icons {
-        color: #16161d;
-        font-size: 150px;
-      }
-    }
-
-    select {
-      min-width: 300px;
-      min-height: 80px;
-    }
-
-    .record-modal-description {
-      display: flex;
-      flex-direction: column;
-      align-items: left;
-
-      .record-modal-command {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        padding: 10px 0px 10px 0px;
-        color: #fff;
-
-        .code-snippet {
-          width: 100%;
-        }
-      }
-
-      h3 {
-        padding-top: 15px;
-        align-self: start;
-        font-size: 1.2rem;
-        color: #0000ff;
-      }
-
-      h4 {
-        align-self: start;
-        font-size: 1.1rem;
-      }
-
-      text {
-        padding: 10px 0px 10px 0px;
-        color: #000000;
-      }
-
-      input[type="text"] {
-        flex-grow: 1;
-        border-radius: $pf-border-radius;
-        border: 1px solid #dcdcdc;
-        padding: 3px;
-        margin: 0 10px;
-        min-width: 170px;
-
-        &:focus {
-          outline: none;
-          box-shadow: 1px 1px 1px rgba(23, 32, 44, 0.3);
-        }
-      }
-    }
-  }
-
-  .record-modal-button,
-  .record-modal-button-high,
-  .record-modal-logo-button {
-    font-size: 0.875rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    background-color: #0000ff;
-    color: #fff;
-    cursor: pointer;
-    -webkit-appearance: button;
-    text-transform: none;
-    overflow: visible;
-    line-height: 1.15;
-    margin: 5px;
-    will-change: transform;
-    -moz-osx-font-smoothing: grayscale;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    transform: translateZ(0);
-    transition: transform 0.25s ease-out;
-    align-self: end;
-    text-align: center;
-  }
-
-  .record-modal-button,
-  .record-modal-button-high {
+  // The always-visible centered box that has menu and sections on the right.
+  .record-container {
+    position: relative;
+    max-width: 900px;
+    min-height: 500px;
+    margin: auto;
     border-radius: $pf-border-radius;
-    border-style: none;
-    border-width: 0;
-  }
+    box-shadow:
+      0 1px 2px 0 #aaa,
+      0 1px 3px 1px #eee;
+    background-color: #fff;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "header"
+      "content";
+    overflow: hidden;
+    z-index: 6;
 
-  .record-modal-button-high:disabled {
-    background-color: #808080;
-  }
-
-  .record-modal-button-high {
-    height: 100%;
-    align-self: center;
-    display: flex;
-    align-items: center;
-  }
-
-  .record-modal-logo-button {
-    border-radius: 50%;
-    width: 35px;
-    height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
-
-.hider {
-  @include transition(0.2s);
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  background: #000;
-  opacity: 0.2;
-  z-index: 5;
-}
-
-.record-header {
-  grid-area: header;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  border-bottom: 1px solid #eee;
-
-  .top-part {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    // Connect/start/stop tracing buttons.
-    .button {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      width: auto;
-      height: 50px;
-      margin: 0;
-      > * {
-        @include transition(0.2s);
-        cursor: pointer;
-        border-radius: 10px;
-        margin: 10px;
-        text-align: center;
-        background-color: #eee;
-        font-family: "Roboto", sans-serif;
-        font-size: 17px;
-        @media (max-width: 1280px) {
-          font-size: 1.6vw;
-        }
-        padding: 7px;
-
-        &:hover {
-          background-color: hsl(88, 50%, 84%);
-          box-shadow: 0 0 4px 0 #999;
-        }
-
-        &.selected {
-          background-color: hsl(88, 50%, 67%);
-          box-shadow: 0 0 4px 0 #999;
-        }
-
-        &.disabled {
-          background-color: hsl(0, 0%, 97%);
-        }
-      }
+    // The body of the record container.
+    .record-container-content {
+      display: grid;
+      grid-template-columns: 2fr 5fr;
+      grid-template-areas: "sidebar section";
     }
 
-    .target-and-status {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-evenly;
-
-      .target {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-      }
-
-      label,
-      select,
-      button {
-        font-weight: 300;
-        margin: 3px;
-        color: #333;
-        font-size: 17px;
-        font-family: "Roboto", sans-serif;
-        align-items: center;
-
-        &.error-label {
-          max-width: 500px;
-          color: rgb(255, 0, 0);
-          font-size: 15px;
-        }
-      }
-      .chip {
-        @include transition();
-        display: flex;
-        align-items: center;
-        border: 1px solid #eee;
-        outline: none;
-        margin: 4px;
-        border-radius: 20px;
-        padding: 4px;
-        height: 30px;
-        &:hover,
-        &:active {
-          box-shadow: 0 0 4px 0 #ccc;
-          background-color: #fafafa;
-        }
-        i {
-          margin: 3px;
-          align-items: center;
-        }
-      }
-    }
-  }
-
-  .note {
-    border-radius: 3px;
-    margin-bottom: 5px;
-    background: #f9eeba;
-    padding: 10px;
-    font-family: "Roboto", sans-serif;
-    font-size: 14px;
-    line-height: 20px;
-  }
-
-  select {
-    @include transition();
-    margin-left: 10px;
-    border-radius: 0;
-    border: 1px solid #eee;
-    outline: none;
-    &:hover,
-    &:active {
-      box-shadow: 0 0 6px #ccc;
+    .full-centered {
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      padding: 180px 30px;
+      font-family: "Roboto", sans-serif;
+      font-size: 25px;
     }
   }
 }
 
 // The left-hand-side menu with 'Cpu', 'Memory' etc.
-.record-menu {
+.pf-record-menu {
   grid-area: sidebar;
   .rec {
     color: #ee3326;
@@ -474,7 +203,7 @@
   }
 } // record-menu
 
-.record-section {
+.pf-record-page .record-section {
   grid-area: section;
   background: #fff;
   transition: opacity 0.25s ease;
@@ -510,7 +239,7 @@
 
   .title-config {
     display: inline-block;
-    margin: var(--record-section-padding);
+    margin: var(--pf-record-section-padding);
     flex-grow: 1;
     word-break: break-all;
   }
@@ -597,11 +326,11 @@
   }
 
   // By default space all section elements by the same amount.
-  --record-section-padding: 20px;
+  --pf-record-section-padding: 20px;
 
   > * {
-    padding-left: var(--record-section-padding);
-    padding-right: var(--record-section-padding);
+    padding-left: var(--pf-record-section-padding);
+    padding-right: var(--pf-record-section-padding);
     &:first-child {
       padding-top: 20px;
     }
@@ -630,8 +359,8 @@
     grid-template-columns: 220px 1fr;
     grid-template-areas: "label label" "img descr";
     transition: color 0.2s ease;
-    padding-top: var(--record-section-padding);
-    padding-bottom: var(--record-section-padding);
+    padding-top: var(--pf-record-section-padding);
+    padding-bottom: var(--pf-record-section-padding);
 
     &.compact {
       padding-top: 10px;
@@ -726,7 +455,7 @@
       font-size: 14px;
       font-weight: 200;
       min-height: 50px;
-      color: var(--record-text-color);
+      color: var(--pf-record-text-color);
       line-height: 20px;
     }
 
@@ -769,12 +498,12 @@
   } // probe
 
   .textarea-holder {
-    padding-top: var(--record-section-padding);
+    padding-top: var(--pf-record-section-padding);
   }
 
   .toggle {
     transition: color 0.2s ease;
-    padding-top: var(--record-section-padding);
+    padding-top: var(--pf-record-section-padding);
 
     &:hover {
       > img {
@@ -791,7 +520,7 @@
     > label {
       cursor: pointer;
       font-size: 14px;
-      color: var(--record-text-color);
+      color: var(--pf-record-text-color);
 
       // The per-probe on-off switch.
       input[type="checkbox"] {
@@ -904,7 +633,7 @@
     grid-template-areas:
       "hdr hdr hdr hdr" "descr descr descr descr"
       "icon slider label unit";
-    margin-top: var(--record-section-padding);
+    margin-top: var(--pf-record-section-padding);
 
     &.thin {
       grid-template-columns: 1fr 1fr 100px 0;
@@ -931,7 +660,7 @@
 
     &.thin > header {
       opacity: 1;
-      color: var(--record-text-color);
+      color: var(--pf-record-text-color);
       font-size: 14px;
     }
 
@@ -1044,7 +773,7 @@
     .unit {
       grid-area: unit;
       font-size: 12px;
-      color: var(--record-text-color);
+      color: var(--pf-record-text-color);
       position: relative;
       line-height: 37px;
       overflow: hidden;
@@ -1073,7 +802,7 @@
       @include transition();
       min-height: 25px;
       font-size: 12px;
-      color: var(--record-text-color);
+      color: var(--pf-record-text-color);
       cursor: pointer;
       padding: 5px 0;
     }
@@ -1091,7 +820,7 @@
     }
 
     &.singlecolumn {
-      margin: var(--record-section-padding) 0;
+      margin: var(--pf-record-section-padding) 0;
       padding: 0;
       max-width: 100%;
       width: 100%;
@@ -1127,7 +856,7 @@
 
       &.two-columns {
         height: 400px;
-        margin: var(--record-section-padding);
+        margin: var(--pf-record-section-padding);
         optgroup {
           display: grid;
           padding: 0;
@@ -1158,7 +887,7 @@
     border: 1px solid #eee;
     resize: none;
     outline: none;
-    font-family: var(--monospace-font);
+    font-family: var(--pf-monospace-font);
 
     &::placeholder {
       color: #aaa;
@@ -1182,7 +911,7 @@
     .note {
       border: 1px dashed #ddd;
       background: #f9eeba;
-      margin: var(--record-section-padding);
+      margin: var(--pf-record-section-padding);
       padding: 10px;
       font-family: "Roboto", sans-serif;
       font-size: 14px;
@@ -1236,7 +965,7 @@
     }
 
     .permalinkconfig {
-      margin: var(--record-section-padding);
+      margin: var(--pf-record-section-padding);
       height: 40px;
       max-width: 200px;
       border-radius: 10px;
@@ -1256,7 +985,7 @@
       appearance: none;
       width: 600px;
       height: 30px;
-      margin: var(--record-section-padding);
+      margin: var(--pf-record-section-padding);
       border-radius: 5px;
     }
     ::-webkit-progress-value {
@@ -1268,7 +997,7 @@
   }
 } // record-section
 
-.inline-chip {
+.pf-inline-chip {
   @include transition();
   &:hover,
   &:active {
@@ -1289,18 +1018,18 @@
   border-radius: 9px;
 }
 
-a.inline-chip,
-a.inline-chip:link,
-a.inline-chip:visited {
+a.pf-inline-chip,
+a.pf-inline-chip:link,
+a.pf-inline-chip:visited {
   text-decoration: none;
-  color: var(--record-text-color);
+  color: var(--pf-record-text-color);
 }
 
-.code-snippet {
+.pf-code-snippet {
   display: grid;
   position: relative;
   padding: 0;
-  margin: 0 var(--record-section-padding);
+  margin: 0 var(--pf-record-section-padding);
   background-color: #111;
   border-radius: 4px;
   box-shadow: 0 0 12px #999;
@@ -1341,7 +1070,7 @@ a.inline-chip:visited {
     display: block;
     margin: 10px 5px 20px 20px;
     color: #ccc;
-    font-family: var(--monospace-font);
+    font-family: var(--pf-monospace-font);
     font-size: 12px;
     line-height: 20px;
     overflow-y: auto;
@@ -1383,11 +1112,11 @@ a.inline-chip:visited {
   > button:active:hover {
     transform: scale(0.9);
   }
-} // code-snippet
+} // pf-code-snippet
 
 // For RecordingV2
 
-.record-section[id="target"] {
+.pf-record-page .record-section[id="target"] {
   header {
     font-size: 1rem;
     font-weight: 600;
@@ -1484,7 +1213,7 @@ a.inline-chip:visited {
   }
 
   .preflight-checks-table {
-    font-family: var(--monospace-font);
+    font-family: var(--pf-monospace-font);
     font-size: 0.8rem;
     display: block;
     border-collapse: collapse;

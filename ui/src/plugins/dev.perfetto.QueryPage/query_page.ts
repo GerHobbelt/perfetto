@@ -112,7 +112,7 @@ export interface QueryPageAttrs {
 export class QueryPage implements m.ClassComponent<QueryPageAttrs> {
   view({attrs}: m.CVnode<QueryPageAttrs>) {
     return m(
-      '.query-page',
+      '.pf-query-page',
       m(Callout, 'Enter query and press Cmd/Ctrl + Enter'),
       state.enteredText.includes('"') &&
         m(
