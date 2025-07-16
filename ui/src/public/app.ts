@@ -23,6 +23,7 @@ import {PageManager} from './page';
 import {FeatureFlagManager} from './feature_flag';
 import {Raf} from './raf';
 import {SettingsManager} from './settings';
+import {Evt} from '../base/events';
 import {TraceStream} from '../core/trace_stream';
 
 /**
@@ -62,6 +63,12 @@ export interface App {
   readonly trace?: Trace;
 
   /**
+   * Event notifying when the active trace changes.
+   * When `undefined` this means that there is no longer any trace loaded.
+   */
+  readonly onActiveTraceChanged: Evt<Trace | undefined>;
+
+  /**
    * Used to schedule things.
    */
   readonly raf: Raf;
@@ -84,5 +91,5 @@ export interface App {
     title: string;
     fileName: string;
   }): Promise<Trace>;
-  closeCurrentTrace(): void;
+  closeTrace(trace: Trace): void;
 }
