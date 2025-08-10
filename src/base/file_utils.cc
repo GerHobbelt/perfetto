@@ -40,6 +40,8 @@
 #include <direct.h>
 #include <io.h>
 #include <stringapiset.h>
+#undef min
+#undef max
 #else
 #include <dirent.h>
 #include <unistd.h>

@@ -22,6 +22,8 @@
 
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #include <Windows.h>
+#undef min
+#undef max
 #else  // PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #include <sys/mman.h>
 #endif  // PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)

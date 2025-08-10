@@ -26,6 +26,8 @@
 #include <xlocale.h>
 #elif PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #include <Windows.h>
+#undef min
+#undef max
 #endif
 
 #include <cinttypes>
