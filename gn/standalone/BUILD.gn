@@ -213,6 +213,7 @@ config("default") {
     cflags += [
       "-fstrict-aliasing",
       "-Wformat",
+      "-Wno-nonportable-system-include-path",
     ]
   }
 
