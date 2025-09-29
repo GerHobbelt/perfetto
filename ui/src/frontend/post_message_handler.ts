@@ -326,7 +326,7 @@ async function scrollToTimeRange(
 ) {
   const app = AppImpl.instance;
   const trace = app.trace;
-  if (trace && !app.isLoadingTrace) {
+  if (trace && !app.isTraceLoading(trace.traceInfo.source)) {
     const start = Time.fromSeconds(postedScrollToRange.timeStart);
     const end = Time.fromSeconds(postedScrollToRange.timeEnd);
     trace.scrollTo({
