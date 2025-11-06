@@ -1,0 +1,75 @@
+name: Build Perfetto UI
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+        - debug
+        - release
+      tag_name:
+        description: 'Release tag name'
+        required: true
+        default: 'v0.0.1'
+        type: string
+      upload_artifacts:
+        description: 'Upload UI build artifacts'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  build-ui:
+    name: Build Perfetto UI
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install pnpm
+      run: npm install -g pnpm
+
+    - name: Patch install script
+      run: |
+        sed -i "s/'--frozen-lockfile'//g" tools/install-build-deps
+
+    - name: Install UI build dependencies
+      run: |
+        tools/install-build-deps --ui
+
+    - name: Build UI
+      run: |
+        ui/build --out out/dist
+
+    - name: Package UI artifacts
+      if: ${{ github.event.inputs.upload_artifacts }}
+      run: |
+        cd out/dist/ui/dist
+        tar -czf perfetto-ui-${{ github.event.inputs.build_type }}-${{ github.sha }}.tar.gz ./*
+        zip -r perfetto-ui-${{ github.event.inputs.build_type }}-${{ github.sha }}.zip ./*
+
+    - name: Create Release
+      if: ${{ github.event.inputs.upload_artifacts }}
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.tag_name }}
+        name: Perfetto UI ${{ github.event.inputs.tag_name }}
+        body: |
+          Perfetto UI ${{ github.event.inputs.build_type }} build
+          - Build date: ${{ steps.build-info.outputs.build_date }}
+          - Commit: ${{ github.sha }}
+          - Build type: ${{ github.event.inputs.build_type }}
+        draft: false
+        prerelease: false
+        files: |
+          out/dist/ui/dist/perfetto-ui-${{ github.event.inputs.build_type }}-${{ github.sha }}.tar.gz
+          out/dist/ui/dist/perfetto-ui-${{ github.event.inputs.build_type }}-${{ github.sha }}.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
